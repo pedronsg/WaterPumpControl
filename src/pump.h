@@ -22,15 +22,14 @@ private:
   uint64_t noWaterMillis;
   uint64_t overloadMillis;
   PumpStatus status;
+  PumpStatus previousStatus;
 
-  bool timersUnprotectedSet;
   bool timersFloodSet;
   bool timersOverloadSet;
   bool timersNoWaterSet;
   float amps;
   ConfigData configs;
 
-//  void startOnTimers();
   bool unprotectedStartTime();
   void checkFlood();
   void checkNoWater();
@@ -43,7 +42,6 @@ public:
   PumpStatus getStatus();
   Pump();
 
-//  PumpStatus getStatus(float ampValue, ConfigData config);
 };
 
 #endif

@@ -6,11 +6,11 @@
 
 Pump::Pump(){
   status=OFF;
+  previousStatus=OFF;
   _needInit=false;
   timersOverloadSet=true;
   timersNoWaterSet=true;
   timersFloodSet=true;
-  timersUnprotectedSet=true;
   unprotectedStartMillis=0;
   floodMillis=0;
   noWaterMillis=0;
@@ -22,7 +22,6 @@ void Pump::set(float amp, ConfigData conf)
 {
   amps=amp;
   configs=conf;
-//  previousStatus=status;
   if (unprotectedStartTime())
   {
       checkOverload();
@@ -39,39 +38,32 @@ void Pump::start()
   status=ON;
 }
 
+void Pump::stop()
+{
+  status=OFF;
+  previousStatus=OFF;
+  digitalWrite(PUMP_PIN, LOW);
+}
 
 //Pump unprotected start timer
 bool Pump::unprotectedStartTime()
 {
-  bool rtn=false;
-  if(timersUnprotectedSet && status==ON)
+  bool rtn=true;
+  if(previousStatus==OFF && status==ON)
   {
-    timersUnprotectedSet=false;
     unprotectedStartMillis=millis();
+    rtn=false;
+    previousStatus=ON;
+  }
+  else if(previousStatus==ON && (millis()-unprotectedStartMillis)>UNPROTECTED_START_DELAY && status==ON)
+  {
+    rtn=true;
+  }
+  else if(previousStatus==ON && (millis()-unprotectedStartMillis)<UNPROTECTED_START_DELAY && status==ON)
+  {
     rtn=false;
   }
 
-  if(!timersUnprotectedSet && (millis()-unprotectedStartMillis)>UNPROTECTED_START_DELAY && status==ON)
-  {
-    // uint64_t unprotecteddebugMillis=millis();
-    //
-    // if(unprotectedStartMillis-unprotecteddebugMillis>1000)
-    // {
-    //
-    // }
-    // UNPROTECTED_START_DELAY
-    // Serial.print ( "Running unprotected mode: " ); Serial.println ( ssid );
-
-    timersUnprotectedSet=true;
-    rtn=true;
-  }
-
-  if(status!=ON)
-  {
-    timersUnprotectedSet=true;
-    unprotectedStartMillis = 0;
-    rtn=true;
-  }
   return rtn;
 }
 
@@ -161,18 +153,10 @@ void Pump::checkOverload()
 }
 
 
-
-void Pump::stop()
-{
-  status=OFF;
-  digitalWrite(PUMP_PIN, LOW);
-}
-
 PumpStatus Pump::getStatus()
 {
   return status;
 }
-
 
 
 bool Pump::needInit()

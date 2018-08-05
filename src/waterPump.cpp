@@ -67,7 +67,7 @@ void setup() {
   Serial.println ( "HTTP server started" );
 
 //testing
-  config.maxAmps=2.50;
+  config.maxAmps=2.00;
   config.minAmps=1.00;
   config.minBars=1.00;
   config.maxBars=2.50;
