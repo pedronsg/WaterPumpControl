@@ -23,7 +23,6 @@ private:
   uint64_t overloadMillis;
   PumpStatus status;
 
-  PumpStatus previousStatus;
   bool timersUnprotectedSet;
   bool timersFloodSet;
   bool timersOverloadSet;

@@ -15,6 +15,7 @@
 *.so
 *.dylib
 *.dll
+*.dblite
 
 # Fortran module files
 *.mod
@@ -30,3 +31,6 @@
 *.exe
 *.out
 *.app
+*.bin
+*.elf
+.pioenvs/.sconsign.dblite

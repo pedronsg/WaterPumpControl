@@ -44,7 +44,7 @@ void Pump::start()
 bool Pump::unprotectedStartTime()
 {
   bool rtn=false;
-  if(previousStatus=!ON && status==ON)
+  if(timersUnprotectedSet && status==ON)
   {
     timersUnprotectedSet=false;
     unprotectedStartMillis=millis();
