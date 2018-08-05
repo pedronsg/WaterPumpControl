@@ -34,3 +34,11 @@
 *.bin
 *.elf
 .pioenvs/.sconsign.dblite
+.pioenvs
+.piolibdeps
+.clang_complete
+.gcc-flags.json
+*.dblite
+*.bin
+*.elf
+*.hash
