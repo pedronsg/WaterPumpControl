@@ -53,6 +53,15 @@ bool Pump::unprotectedStartTime()
 
   if(!timersUnprotectedSet && (millis()-unprotectedStartMillis)>UNPROTECTED_START_DELAY && status==ON)
   {
+    // uint64_t unprotecteddebugMillis=millis();
+    //
+    // if(unprotectedStartMillis-unprotecteddebugMillis>1000)
+    // {
+    //
+    // }
+    // UNPROTECTED_START_DELAY
+    // Serial.print ( "Running unprotected mode: " ); Serial.println ( ssid );
+
     timersUnprotectedSet=true;
     rtn=true;
   }

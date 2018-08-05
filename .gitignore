@@ -42,3 +42,4 @@
 *.bin
 *.elf
 *.hash
+.pioenvs/
