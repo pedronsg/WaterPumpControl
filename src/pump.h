@@ -40,6 +40,7 @@ public:
   void stop();
   void set(float amp, ConfigData conf);
   PumpStatus getStatus();
+  String  getTextStatus();
   Pump();
 
 };

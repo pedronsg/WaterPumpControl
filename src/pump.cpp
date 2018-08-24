@@ -22,7 +22,7 @@ void Pump::set(float amp, ConfigData conf)
 {
   amps=amp;
   configs=conf;
-  if (unprotectedStartTime())
+  if (!unprotectedStartTime())
   {
       checkOverload();
   }
@@ -34,8 +34,8 @@ void Pump::set(float amp, ConfigData conf)
 
 void Pump::start()
 {
-  digitalWrite(PUMP_PIN, HIGH);
   status=ON;
+  digitalWrite(PUMP_PIN, HIGH);
 }
 
 void Pump::stop()
@@ -48,20 +48,18 @@ void Pump::stop()
 //Pump unprotected start timer
 bool Pump::unprotectedStartTime()
 {
-  bool rtn=true;
+  bool rtn=false;
   if(previousStatus==OFF && status==ON)
   {
     unprotectedStartMillis=millis();
-    rtn=false;
+    rtn=true;
     previousStatus=ON;
   }
-  else if(previousStatus==ON && (millis()-unprotectedStartMillis)>UNPROTECTED_START_DELAY && status==ON)
+  else if(previousStatus==ON &&
+    (millis()-unprotectedStartMillis)<=UNPROTECTED_START_DELAY &&
+    status==ON)
   {
     rtn=true;
-  }
-  else if(previousStatus==ON && (millis()-unprotectedStartMillis)<UNPROTECTED_START_DELAY && status==ON)
-  {
-    rtn=false;
   }
 
   return rtn;
@@ -158,6 +156,28 @@ PumpStatus Pump::getStatus()
   return status;
 }
 
+String Pump::getTextStatus()
+{
+  String rtn="UNKNOWN";
+  switch (status) {
+    case OFF:
+      rtn="OFF";
+      break;
+    case ON:
+      rtn="ON";
+      break;
+    case NOWATER:
+      rtn="NO WATER";
+      break;
+    case OVERLOAD:
+      rtn="OVERLOAD";
+      break;
+    case FLOODPROTECTION:
+      rtn="PROTECTION";
+      break;
+  }
+  return rtn;
+}
 
 bool Pump::needInit()
 {
