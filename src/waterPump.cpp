@@ -1,10 +1,15 @@
 #include <Arduino.h>
 #include "html_handlers.h"
+//#include <ESP8266WiFi.h>
 #include <WiFiClient.h>
 #include <Adafruit_ADS1015.h>
 #include "eeprom.h"
 #include "tank.h"
 #include "pump.h"
+#include "display.h"
+#include "spiffs.h"
+
+//#include "images.h"
 
 #define ssid      "Linksys"      // WiFi SSID
 #define password  "inesdanielapedro2011"  // WiFi password
@@ -20,25 +25,32 @@ Pump pump;
 
 String etatGpio[4] = {"OFF","OFF","OFF","OFF"};
 ESP8266WebServer server ( 80 );
+//SSD1306Wire  display(0x3c, D2, D1);
+Display display;
+Spiffs spiffs;
+uint64_t serialMillis=0;
+bool blink=false;
 
 
 
 void setup() {
-  //pin initialization
-  // for ( int x = 0 ; x < 5 ; x++ ) {
-  //   pinMode(GPIOPIN[x],OUTPUT);
-  // }
+
+  //serial communication
+  Serial.begin ( 115200 );
+
+  display.printProgress();
+
+  //SPIFFS files initialization
+  spiffs.begin();
 
   //PUMP pin
   pinMode(PUMP_PIN, OUTPUT);
   digitalWrite(PUMP_PIN, LOW);
 
-  //serial communication
-  Serial.begin ( 115200 );
+  //STOP Switch
+  pinMode(STOP_SWITCH, INPUT);
 
-  delay (5000 );
-
-  //read eeprom data
+  // read eeprom data
   eepromBegin();
   config = readEeprom();
 
@@ -50,15 +62,40 @@ void setup() {
 
   delay ( 500 );
 
-  //wifi initialization
-  WiFi.begin ( ssid, password );
-  while ( WiFi.status() != WL_CONNECTED ) {
-    delay ( 500 ); Serial.print ( "." );
+  if(digitalRead(STOP_SWITCH)==HIGH)
+  {
+    WiFi.softAP("ssid", password);
+    Serial.println ( "" );
+    IPAddress myIP = WiFi.softAPIP();
+    Serial.print("AP IP address: ");
+    Serial.println(myIP);
   }
+  else
+  {
+
+
+    //wifi initialization
+    WiFi.begin ( ssid, password );
+    bool wifiConnected=false;
+    while ( WiFi.status() != WL_CONNECTED ) {
+      display.clear();
+      if (!wifiConnected)
+      {
+        display.printConnectingWifi();
+        Serial.print ( "." );
+      }
+      delay ( 500 );
+      wifiConnected=!wifiConnected;
+    }
+  }
+
   //WiFi connection is OK
   Serial.println ( "" );
   Serial.print ( "Connected to " ); Serial.println ( ssid );
   Serial.print ( "IP address: " ); Serial.println ( WiFi.localIP() );
+
+
+  display.printInitIp(WiFi.localIP().toString());
 
   //starting http server
   server.on ( "/", handleRoot );
@@ -76,7 +113,9 @@ void setup() {
 
 
 
-uint64_t serialMillis=0;
+
+
+
 
 void loop() {
 
@@ -116,6 +155,19 @@ void loop() {
     Serial.print("PumpStatus: "); Serial.println(pump.getStatus());
     Serial.print("TankStatus: "); Serial.println(tank.getStatus());
     Serial.println(" ");
+
+    display.drawBars(config.minBars, config.maxBars, bars);
+    display.drawAmps(config.minAmps, config.maxAmps, amps);
+
+
+    if(!blink)
+    {
+      display.drawStatus(pump.getTextStatus());
+    }
+
+    blink=!blink;
+    display.print();
+
     serialMillis=millis();
   }
 
