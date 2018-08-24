@@ -1,13 +1,14 @@
 #ifndef INDEX_HTML
   #define INDEX_HTML
+//#include "FS.h"
+
+//#include "html_handlers.h"
+//#include "js\jquery_min_js.h"
 
 
-#include "html_handlers.h"
 
 
-
-
-String index_html(){
+String index_html_(){
   // Renvoi une chaine contenant le code HTML de la page - Return a string containing the HTML code of the page
   String page = "<html charset=UTF-8><head><meta http-equiv='refresh' content='60' name='viewport' content='width=device-width, initial-scale=1'/>";
   page += "<script src='https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js'></script><script src='https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js'></script>";
@@ -89,4 +90,9 @@ String index_html(){
   return page;
 }
 
+String index_html()
+{
+
+  return "";
+}
 #endif

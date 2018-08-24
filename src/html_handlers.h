@@ -3,7 +3,6 @@
 
 #include <ESP8266WebServer.h>
 
-
 extern float amps;
 extern float bars;
 extern String etatGpio[4];
