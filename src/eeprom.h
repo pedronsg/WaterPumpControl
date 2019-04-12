@@ -3,10 +3,14 @@
 
 #include "config.h"
 
+  class Eeprom
+  {
+  private:
 
-  void eepromBegin();
-  bool saveEeprom(ConfigData data);
-  ConfigData readEeprom();
-
-
+  public:
+    void begin();
+    bool save(ConfigData &data);
+    ConfigData read();
+    void reset();
+  };
 #endif

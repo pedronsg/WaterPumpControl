@@ -17,6 +17,11 @@ void Tank::set(float _bar, ConfigData _conf)
   conf=_conf;
 }
 
+float Tank::getBars()
+{
+  return bar;
+}
+
 TankStatus Tank::getStatus()
 {
   status=NORMAL;

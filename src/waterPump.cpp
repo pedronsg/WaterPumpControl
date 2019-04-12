@@ -1,7 +1,8 @@
 #include <Arduino.h>
-#include "html_handlers.h"
-//#include <ESP8266WiFi.h>
-#include <WiFiClient.h>
+#include "webServer.h"
+//#include "html_handlers.h"
+#include "wifi.h"
+//#include <WiFiClient.h>
 #include <Adafruit_ADS1015.h>
 #include "eeprom.h"
 #include "tank.h"
@@ -11,23 +12,23 @@
 
 //#include "images.h"
 
-#define ssid      "Linksys"      // WiFi SSID
-#define password  "inesdanielapedro2011"  // WiFi password
+//#define ssid      "Linksys"      // WiFi SSID
+//#define password  "inesdanielapedro2011"  // WiFi password
 
 Adafruit_ADS1115 ads;
 float amps=0;
 float bars=0;
 
 ConfigData config;
+WifiPump wifi;
 Tank tank;
 Pump pump;
+Eeprom eeprom;
 
-
-String etatGpio[4] = {"OFF","OFF","OFF","OFF"};
-ESP8266WebServer server ( 80 );
-//SSD1306Wire  display(0x3c, D2, D1);
+WebServer webServer;
 Display display;
 Spiffs spiffs;
+
 uint64_t serialMillis=0;
 bool blink=false;
 
@@ -51,8 +52,9 @@ void setup() {
   pinMode(STOP_SWITCH, INPUT);
 
   // read eeprom data
-  eepromBegin();
-  config = readEeprom();
+  eeprom.begin();
+  eeprom.reset();
+  config = eeprom.read();
 
   delay ( 500 );
 
@@ -61,54 +63,10 @@ void setup() {
   ads.begin();
 
   delay ( 500 );
-
-  if(digitalRead(STOP_SWITCH)==HIGH)
-  {
-    WiFi.softAP("ssid", password);
-    Serial.println ( "" );
-    IPAddress myIP = WiFi.softAPIP();
-    Serial.print("AP IP address: ");
-    Serial.println(myIP);
-  }
-  else
-  {
-
-
-    //wifi initialization
-    WiFi.begin ( ssid, password );
-    bool wifiConnected=false;
-    while ( WiFi.status() != WL_CONNECTED ) {
-      display.clear();
-      if (!wifiConnected)
-      {
-        display.printConnectingWifi();
-        Serial.print ( "." );
-      }
-      delay ( 500 );
-      wifiConnected=!wifiConnected;
-    }
-  }
-
-  //WiFi connection is OK
-  Serial.println ( "" );
-  Serial.print ( "Connected to " ); Serial.println ( ssid );
-  Serial.print ( "IP address: " ); Serial.println ( WiFi.localIP() );
-
-
-  display.printInitIp(WiFi.localIP().toString());
-
-  //starting http server
-  server.on ( "/", handleRoot );
-  server.on("/readData", handleData);
-  server.begin();
-  Serial.println ( "HTTP server started" );
-
-//testing
-  config.maxAmps=2.00;
-  config.minAmps=1.00;
-  config.minBars=1.00;
-  config.maxBars=2.50;
-
+  wifi.init(config);
+  wifi.start();
+  webServer.init(config, eeprom, wifi, pump, tank);
+  webServer.start();
 }
 
 
@@ -145,7 +103,8 @@ void loop() {
   }
 
 
-  server.handleClient();
+//  server.handleClient();
+//  webServer.update();
 
   //each second debug messages
   if(millis()-serialMillis>1000)
@@ -158,7 +117,6 @@ void loop() {
 
     display.drawBars(config.minBars, config.maxBars, bars);
     display.drawAmps(config.minAmps, config.maxAmps, amps);
-
 
     if(!blink)
     {

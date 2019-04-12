@@ -31,6 +31,10 @@ void Pump::set(float amp, ConfigData conf)
   checkFlood();
 }
 
+float Pump::getAmps()
+{
+  return amps;
+}
 
 void Pump::start()
 {
@@ -56,7 +60,7 @@ bool Pump::unprotectedStartTime()
     previousStatus=ON;
   }
   else if(previousStatus==ON &&
-    (millis()-unprotectedStartMillis)<=UNPROTECTED_START_DELAY &&
+    (millis()-unprotectedStartMillis)<=configs.unprotectedStartDelay &&
     status==ON)
   {
     rtn=true;
@@ -78,7 +82,7 @@ void Pump::checkFlood()
     floodMillis = millis();
   }
 
-  if(!timersFloodSet && ((millis()-floodMillis)>MAX_RUNNING_TIME*1000*60) &&
+  if(!timersFloodSet && ((millis()-floodMillis)>configs.maxRunningtime*1000*60) &&
     status==ON  && amps>=configs.minAmps && amps<=configs.maxAmps)
   {
     status=FLOODPROTECTION;
@@ -108,7 +112,7 @@ void Pump::checkNoWater()
     noWaterMillis = millis();
   }
 
-  if(!timersNoWaterSet && amps<configs.minAmps && millis()-noWaterMillis>NO_WATER_TIME*1000 && status==ON)
+  if(!timersNoWaterSet && amps<configs.minAmps && millis()-noWaterMillis>configs.noWaterTime*1000 && status==ON)
   {
     status=NOWATER;
     _needInit=true;

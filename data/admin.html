@@ -1,0 +1,206 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Water Pump Control</title>
+    <link href="/bootstrap.css" rel="stylesheet">
+    <link href="/jumbotron-narrow.css" rel="stylesheet">
+	<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+	<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+	<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+	<link rel="manifest" href="/site.webmanifest">
+	<link rel="mask-icon" href="/safari-pinned-tab.svg" color="#5bbad5">
+	<meta name="msapplication-TileColor" content="#da532c">
+	<meta name="theme-color" content="#ffffff">
+
+    <style>
+	.btn-file {
+    position: relative;
+    overflow: hidden;
+}
+.btn-file input[type=file] {
+    position: absolute;
+    top: 0;
+    right: 0;
+    min-width: 100%;
+    min-height: 100%;
+    font-size: 100px;
+    text-align: right;
+    filter: alpha(opacity=0);
+    opacity: 0;
+    outline: none;
+    background: white;
+    cursor: inherit;
+    display: block;
+}
+    </style>
+
+    <script>
+	document.addEventListener('DOMContentLoaded', function() {
+		getAdmin();
+	}, false);
+	
+	function confirmReboot(){	
+		var r = confirm("Reboot System!\n Are you sure?");
+		if (r) {
+			setCommand("reboot");
+		} 
+	}
+	function confirmReset(){	
+		var r = confirm("Reset, you will lose all your configuration!\n Are you sure?");
+		if (r) {
+			setCommand("reset");
+		} 
+	}
+	
+	function getAdmin() {
+		var xmlhttp = new XMLHttpRequest();
+
+		xmlhttp.onreadystatechange = function() {
+			if (xmlhttp.readyState == XMLHttpRequest.DONE) {   // XMLHttpRequest.DONE == 4
+			   if (xmlhttp.status == 200) {
+				   var settingsObj = JSON.parse(xmlhttp.responseText);
+				   document.getElementById("httpUser").value = settingsObj.httpUser;	
+				   document.getElementById("httpPass").value = settingsObj.httpPass;
+				   document.getElementById("httpPass2").value = settingsObj.httpPass;
+				   //document.getElementById("maxAmps").value = settingsObj.maxAmps.toFixed(2);		
+			   }
+			   //else if (xmlhttp.status == 400) {
+				  //alert('There was an error 400');
+			   //}
+			   //else {
+				   //alert('something else other than 200 was returned');
+			   //}	 
+			}
+		};
+		xmlhttp.open("POST", "/getAdmin", true);
+		xmlhttp.send();
+	}
+
+	function setCommand(cmd)
+	{
+		var xmlHttp = new XMLHttpRequest();
+		xmlHttp.open("POST", "/"+cmd,true);
+		
+		//Send the proper header information along with the request
+		xmlHttp.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
+		xmlHttp.onreadystatechange = function() {//Call a function when the state changes.
+			if(xmlHttp.readyState == 4 && xmlHttp.status == 200) {
+				alert(xmlHttp.responseText);
+			}
+		};
+		xmlHttp.send(cmd); 		
+	}
+	
+
+	function setAdmin()
+	{
+		var httpUser = document.getElementById("httpUser");
+		var httpPass  = document.getElementById("httpPass");
+		var httpPass2 = document.getElementById("httpPass2");
+		var obj = new Object();
+		
+		if(httpPass.value != httpPass2.value)
+		{
+			httpPass2.setCustomValidity("Passwords Don't Match");
+			httpPass2.reportValidity();
+		}
+		else if(httpUser.reportValidity() && httpPass.reportValidity() && httpPass2.reportValidity())
+		{
+			obj.httpUser = httpUser.value;
+			obj.httpPass  = httpPass.value;
+			obj.httpPass2 = httpPass2.value;
+
+			var jsonString= JSON.stringify(obj);
+			var xmlHttp = new XMLHttpRequest();
+			xmlHttp.onreadystatechange = function()
+			{
+				if(xmlHttp.readyState == 4 && xmlHttp.status == 200)
+				{
+					alert(xmlHttp.responseText);
+				}
+			}
+			xmlHttp.open("POST", "/setAdmin",true); 
+			xmlHttp.send(jsonString); 		
+		}
+	}
+	
+	
+	function showAp() {
+		// Get the checkbox
+		var checkBox = document.getElementById("apMode");
+		// Get the output text
+		var obj = document.getElementById("apNameForm");
+		// If the checkbox is checked, display the output text
+		if (checkBox.checked == true){
+			obj.style.display = "block";
+		} else {
+			obj.style.display = "none";
+		}
+	}
+	
+	
+	</script>
+  </head>
+
+  <body>
+
+    <div class="container">
+            <div class="header">
+				<nav>
+					<ul class="nav nav-pills pull-right">
+                    <li role="presentation"><a href="live">Live</a></li>
+                    <li role="presentation" ><a href="network">Network</a></li>
+                    <li role="presentation" ><a href="settings">Settings</a></li>
+					<li role="presentation" class="active"><a href="admin">Admin</a></li>
+					<li role="presentation" ><a href="logout">Logout</a></li>
+					</ul>
+				</nav>
+				<h3 class="text-muted">PumpControl</h3>
+			</div>
+		<div class="well">
+			<form role="form" method="post" action="">
+
+				<!-- Form Name -->
+				<legend>Authentication</legend>
+				<!-- Text input-->
+				<!-- <div class="form-group">
+				<input name="checkHttps" id="checkHttps" type="checkbox">Enable Https (Need reboot)
+				</div> -->
+				<div class="form-group">
+				<div class="form-group">
+				  <label  for="httpUser">Username</label>  
+				  <input id="httpUser" name="httpUser" type="text" class="form-control input-md" data-toggle="tooltip" title="New username" required oninvalid="this.setCustomValidity('Username required')" oninput="this.setCustomValidity('')">
+				</div>
+				<div class="form-group">
+				  <label  for="httpPass">Password</label>  
+				  <input id="httpPass" name="httpPass" type="password" class="form-control input-md" data-toggle="tooltip" title="New password" required oninvalid="this.setCustomValidity('Invalid Password!')" oninput="this.setCustomValidity('')">
+				</div>
+				<div class="form-group">
+				  <label  for="httpPass2">Repeat Password</label>  
+				  <input id="httpPass2" name="httpPass2" type="password" class="form-control input-md" data-toggle="tooltip" title="Repeat password"  required oninput="this.setCustomValidity('')">
+				</div>
+
+				<legend>Https</legend>			
+				<div class="form-group">
+				<input name="clientMode" id="clientMode" type="checkbox"> Use Https (needs reboot)
+				</div>
+
+				<div class="form-group">
+					<p class="text-right">
+						<!-- <input id="btSettings" name="singlebutton" class="btn btn-primary" type="button" onclick="setSettings()" value="Save" /> -->
+						<input id="btReset" name="btReset" class="btn btn-primary" type="button" onclick="confirmReset()" value="Reset" />
+						<input id="btReboot" name="btReboot" class="btn btn-primary" type="button" onclick="confirmReboot()" value="Reboot" />
+						<input id="btApply" name="singlebutton" class="btn btn-primary" type="button" onclick="setAdmin()" value="Apply" />
+					</p>
+				</div>
+			</form>
+
+		</div>
+      <footer class="footer">
+        <p>&copy; PumpControl @2019 by <a href="mailto:pedronsg@gmail.com">pedronsg@gmail.com</a></p>
+      </footer>
+
+    </div>
+  </body>
+</html>

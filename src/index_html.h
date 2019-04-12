@@ -1,6 +1,6 @@
 #ifndef INDEX_HTML
   #define INDEX_HTML
-//#include "FS.h"
+#include "FS.h"
 
 //#include "html_handlers.h"
 //#include "js\jquery_min_js.h"
@@ -8,7 +8,7 @@
 
 
 
-String index_html_(){
+String _index_html(){
   // Renvoi une chaine contenant le code HTML de la page - Return a string containing the HTML code of the page
   String page = "<html charset=UTF-8><head><meta http-equiv='refresh' content='60' name='viewport' content='width=device-width, initial-scale=1'/>";
   page += "<script src='https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js'></script><script src='https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js'></script>";
@@ -92,7 +92,21 @@ String index_html_(){
 
 String index_html()
 {
+  String rtnIndexHtml="";
 
-  return "";
+  File f = SPIFFS.open("/index.html", "r");
+
+  if (f && f.size()) {
+    Serial.println("Dumping index.html");
+
+    while (f.available())
+    {
+      rtnIndexHtml += char(f.read());
+    }
+    f.close();
+  }
+
+  return rtnIndexHtml;
 }
+
 #endif

@@ -41,6 +41,7 @@ public:
   void set(float amp, ConfigData conf);
   PumpStatus getStatus();
   String  getTextStatus();
+  float getAmps();
   Pump();
 
 };

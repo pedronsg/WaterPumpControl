@@ -14,7 +14,7 @@ void Display::drawProgressBarDemo(const int progress) {
 
 Display::Display()
 {
-  ssdDisplay.init(DISPLAYADDRESS, SDAPIN, SCLPIN);
+  ssdDisplay.begin(DISPLAYADDRESS, SDAPIN, SCLPIN);
 }
 
 void Display::drawBars(const float min, const float max, const float bars)
@@ -83,7 +83,7 @@ void Display::printInitIp(const String ip)
 void Display::printProgress()
 {
   // Initialising the UI will init the display too.
-//  ssdDisplay.init();
+  ssdDisplay.init();
   ssdDisplay.flipScreenVertically();
   ssdDisplay.setFont(ArialMT_Plain_16);
 

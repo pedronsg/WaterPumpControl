@@ -1,0 +1,12 @@
+{
+  "wifiMode": 0,
+  "apModeSSID": "PumpControl",
+  "apModePass": "",
+  "clientModeSSID": "",
+  "clientModePass": "",
+  "clientDhcpMode": true,
+  "clientModeIp": "",
+  "clientModeMask": "",
+  "clientModeGateway": "",
+  "clientModeDns1": ""
+}

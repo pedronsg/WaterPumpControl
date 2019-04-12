@@ -25,6 +25,7 @@ private:
 public:
   Tank();
   void set(float _bar, ConfigData _conf);
+  float getBars();
   TankStatus getStatus();
 };
 

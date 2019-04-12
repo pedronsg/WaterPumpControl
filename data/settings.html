@@ -1,0 +1,170 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Water Pump Control</title>  
+    <link href="/bootstrap.css" rel="stylesheet">
+    <link href="/jumbotron-narrow.css" rel="stylesheet">
+	<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+	<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+	<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+	<link rel="manifest" href="/site.webmanifest">
+	<link rel="mask-icon" href="/safari-pinned-tab.svg" color="#5bbad5">
+	<meta name="msapplication-TileColor" content="#da532c">
+	<meta name="theme-color" content="#ffffff">
+	
+    <style>
+	.btn-file {
+    position: relative;
+    overflow: hidden;
+}
+.btn-file input[type=file] {
+    position: absolute;
+    top: 0;
+    right: 0;
+    min-width: 100%;
+    min-height: 100%;
+    font-size: 100px;
+    text-align: right;
+    filter: alpha(opacity=0);
+    opacity: 0;
+    outline: none;
+    background: white;
+    cursor: inherit;
+    display: block;
+}
+    </style>
+<script>
+	document.addEventListener('DOMContentLoaded', function() {
+		getSettings();
+	}, false);
+	
+	function getSettings() {
+		var xmlhttp = new XMLHttpRequest();
+
+		xmlhttp.onreadystatechange = function() {
+			if (xmlhttp.readyState == XMLHttpRequest.DONE) {   // XMLHttpRequest.DONE == 4
+			   if (xmlhttp.status == 200) {
+				   var settingsObj = JSON.parse(xmlhttp.responseText);
+				   document.getElementById("maxBars").value = settingsObj.maxBars.toFixed(2);	
+				   document.getElementById("minBars").value = settingsObj.minBars.toFixed(2);
+				   document.getElementById("minAmps").value = settingsObj.minAmps.toFixed(2);
+				   document.getElementById("maxAmps").value = settingsObj.maxAmps.toFixed(2);	   
+				   document.getElementById("maxRunTime").value = settingsObj.maxRunTime.toFixed(2);	
+				   document.getElementById("noWater").value = settingsObj.noWater.toFixed(2);
+				   document.getElementById("unprotectedDelay").value = settingsObj.unprotectedDelay.toFixed(2);				   
+			   }
+			}
+    };
+
+    xmlhttp.open("POST", "/getSettings", true);
+    xmlhttp.send();
+}
+
+
+
+	function setSettings()
+	{
+		var maxBars = document.getElementById("maxBars");
+		var minBars  = document.getElementById("minBars");
+		var maxAmps = document.getElementById("maxAmps");
+		var minAmps = document.getElementById("minAmps");	
+		var maxRunTime = document.getElementById("maxRunTime");
+		var noWater  = document.getElementById("noWater");
+		var unprotectedDelay = document.getElementById("unprotectedDelay");		
+		var obj = new Object();
+			
+		if(maxBars.reportValidity() && minBars.reportValidity() && maxAmps.reportValidity() && minAmps.reportValidity()
+		 && maxRunTime.reportValidity() && noWater.reportValidity() && unprotectedDelay.reportValidity())
+		{
+			obj.maxBars = maxBars.value;
+			obj.minBars  = minBars.value;
+			obj.maxAmps = maxAmps.value;
+			obj.minAmps = minAmps.value;	
+			obj.maxRunTime = maxRunTime.value;
+			obj.noWater  = noWater.value;
+			obj.unprotectedDelay = unprotectedDelay.value;
+			
+			var jsonString= JSON.stringify(obj);
+			var xmlHttp = new XMLHttpRequest();
+			xmlHttp.onreadystatechange = function()
+			{
+				if(xmlHttp.readyState == 4 && xmlHttp.status == 200)
+				{
+					alert(xmlHttp.responseText);
+				}
+			}
+			xmlHttp.open("POST", "/setSettings",true); 
+			xmlHttp.send(jsonString); 
+		}
+	}
+	
+	</script>
+  </head>
+
+  <body>
+
+    <div class="container">
+            <div class="header">
+				<nav>
+					<ul class="nav nav-pills pull-right">
+                    <li role="presentation"><a href="live">Live</a></li>
+                    <li role="presentation" ><a href="network">Network</a></li>
+                    <li role="presentation" class="active"><a href="settings">Settings</a></li>
+					<li role="presentation"><a href="admin">Admin</a></li>
+					<li role="presentation" ><a href="logout">Logout</a></li>
+					</ul>
+				</nav>
+				<h3 class="text-muted">PumpControl</h3>
+			</div>
+		<div class="well">
+			<form role="form" method="post" action="">
+
+				<legend>Pressure</legend>
+				<div class="form-group">
+				  <label  for="maxBars">Max Bars</label>  
+				  <input id="maxBars" name="maxBars" step="0.01" min="0.01" max="9.99" type="number" placeholder="0.10" class="form-control input-md" data-toggle="tooltip" title="Max Bars to shutdown Pump!" required oninvalid="this.setCustomValidity('Invalid Max Bars!')" oninput="this.setCustomValidity('')">
+				</div>
+				<div class="form-group">
+				  <label  for="minBars">Min Bars</label>  
+				  <input id="minBars" name="minBars" step="0.01" min="0.01" max="9.99" type="number" placeholder="0.10" class="form-control input-md" data-toggle="tooltip" title="Min Bars to start Pump!" required oninvalid="this.setCustomValidity('Invalid Min Bars!')" oninput="this.setCustomValidity('')">
+				</div>
+
+				<legend>Current</legend>
+				<div class="form-group">
+				  <label  for="maxAmps">Pump Overcurrent Protection (Amps)</label>  
+				  <input id="maxAmps" name="maxAmps" step="0.01" min="0.01"  max="99.99" type="number" placeholder="0.10" class="form-control input-md" data-toggle="tooltip" title="Max Current for pump protection (check Pump datasheet)!" required oninvalid="this.setCustomValidity('Invalid Max Amps!')" oninput="this.setCustomValidity('')">
+				</div>
+				<div class="form-group">
+				  <label  for="minAmps">No water threshold value (Amps)</label>  
+				  <input id="minAmps" name="minAmps" step="0.01" min="0.01" max="99.99" type="number" placeholder="0.10" class="form-control input-md" data-toggle="tooltip" title="Max Current consummation without water!" required oninvalid="this.setCustomValidity('Invalid Amp value!')" oninput="this.setCustomValidity('')">
+				</div>		
+				<legend>Advanced Configuration</legend>
+				<div class="form-group">
+				  <label  for="unprotectedDelay">Unprotected Start Delay (ms)</label>  
+				  <input id="unprotectedDelay" name="unprotectedDelay" step="1" min="0" max="60000" type="number" placeholder="2000" class="form-control input-md" data-toggle="tooltip" title="Time without any current protection, used to discard start spike!" required oninvalid="this.setCustomValidity('Invalid delay value!')" oninput="this.setCustomValidity('')">
+				</div>
+				<div class="form-group">
+				  <label  for="maxRunTime">Max Running Time (Seconds)</label>  
+				  <input id="maxRunTime" name="maxRunTime" step="1" min="30"  max="36000" type="number" placeholder="3600" class="form-control input-md" data-toggle="tooltip" title="Max time running Pump, after this time Pump will stop automatically to avoid floods"c
+				</div>
+				<div class="form-group">
+				  <label  for="noWater">No Water detection (Seconds)</label>  
+				  <input id="noWater" name="noWater" step="1" min="1"  max="60" type="number" placeholder="5" class="form-control input-md" data-toggle="tooltip" title="Time to detect no water when no water threshold value is reached" required oninvalid="this.setCustomValidity('Invalid time value!')" oninput="this.setCustomValidity('')">
+				</div>
+
+				<div class="form-group">
+					<p class="text-right">
+						<input id="btSettings" name="singlebutton" class="btn btn-primary" type="button" onclick="setSettings()" value="Apply" />
+					</p>
+				</div>
+			</form>
+
+		</div>
+      <footer class="footer">
+        <p>&copy; PumpControl @2019 by <a href="mailto:pedronsg@gmail.com">pedronsg@gmail.com</a></p>
+      </footer>
+
+    </div>
+  </body>
+</html>

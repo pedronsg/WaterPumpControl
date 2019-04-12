@@ -4,6 +4,7 @@
 void Spiffs::begin()
 {
   SPIFFS.begin();
+  delay(500);
 
   Serial.println("\nSearching files...");
    Dir existDir = SPIFFS.openDir("/");
