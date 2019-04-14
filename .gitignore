@@ -46,3 +46,4 @@
 .clang_complete
 .gcc-flags.json
 *.ipch
+.vscode/
