@@ -67,8 +67,7 @@ void WebServer::start()
       if(!request->authenticate(_config->http_username, _config->http_password))
           return request->requestAuthentication();
     AsyncResponseStream *response = request->beginResponseStream("application/json");
-    DynamicJsonBuffer jsonBuffer;
-    JsonObject &root = jsonBuffer.createObject();
+    DynamicJsonDocument root(128);
 
     root["maxBars"] = _config->maxBars;
     root["minBars"] = _config->minBars;
@@ -78,8 +77,7 @@ void WebServer::start()
     root["noWater"] = _config->noWaterTime;
     root["unprotectedDelay"] = _config->unprotectedStartDelay;
 
-    //root["ssid"] = WiFi.SSID();
-    root.printTo(*response);
+    serializeJson(root,*response);
     request->send(response);
 
   });
@@ -89,10 +87,10 @@ void WebServer::start()
     if(!request->authenticate(_config->http_username, _config->http_password))
         return request->requestAuthentication();
   }, NULL, [this](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total){
-    DynamicJsonBuffer jsonBuffer;
-    JsonObject& root = jsonBuffer.parseObject((const char*)data);
+    DynamicJsonDocument root(32);
+    deserializeJson(root, (const char*)data);
     
-    if (root.success()) {
+    if (!root.isNull()) {
       if (root.containsKey("startStop")) {
         if(root["startStop"])
         { //start pump only if tank isn't full
@@ -122,9 +120,10 @@ void WebServer::start()
     if(!request->authenticate(_config->http_username, _config->http_password))
         return request->requestAuthentication();
   }, NULL, [this](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total){
-    DynamicJsonBuffer jsonBuffer;
-    JsonObject& root = jsonBuffer.parseObject((const char*)data);
-    if (root.success()) {
+    DynamicJsonDocument root(512);
+    deserializeJson(root, (const char*)data);
+
+    if (!root.isNull()) {
       if (root.containsKey("maxBars")) {
         _config->maxBars = root["maxBars"];
       }
@@ -166,9 +165,7 @@ void WebServer::start()
     if(!request->authenticate(_config->http_username, _config->http_password))
         return request->requestAuthentication();
   AsyncResponseStream *response = request->beginResponseStream("application/json");
-  DynamicJsonBuffer jsonBuffer;
-  JsonObject &root = jsonBuffer.createObject();
-
+  DynamicJsonDocument root(512);
 
   root["wifiMode"] =(int)_config->wifiMode;
   root["apModeSSID"] = _config->wifiAp.network.ssid;
@@ -182,8 +179,7 @@ void WebServer::start()
   root["clientModeGateway"] =_config->wifiClient.network.gateway;
 	root["clientModeDns1"] = _config->wifiClient.network.dns;
 
-  //root["ssid"] = WiFi.SSID();
-  root.printTo(*response);
+  serializeJson(root,*response);
   request->send(response);
 
 });
@@ -193,13 +189,12 @@ server.on("/getAdmin", HTTP_POST, [this](AsyncWebServerRequest *request){
     if(!request->authenticate(_config->http_username, _config->http_password))
         return request->requestAuthentication();
   AsyncResponseStream *response = request->beginResponseStream("application/json");
-  DynamicJsonBuffer jsonBuffer;
-  JsonObject &root = jsonBuffer.createObject();
+  DynamicJsonDocument root(128);
 
   root["httpUser"] = _config->http_password;
   root["httpPass"] = _config->http_username;
 
-  root.printTo(*response);
+  serializeJson(root,*response);
   request->send(response);
 
 });
@@ -209,22 +204,25 @@ server.on("/getAdmin", HTTP_POST, [this](AsyncWebServerRequest *request){
     if(!request->authenticate(_config->http_username, _config->http_password))
         return request->requestAuthentication();
   }, NULL, [this](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total){
-    DynamicJsonBuffer jsonBuffer;
-    JsonObject& root = jsonBuffer.parseObject((const char*)data);
+    DynamicJsonDocument root(64);
+    deserializeJson(root, (const char*)data);
 
-    if (root.success()) {
+    if (!root.isNull()) {
       if (root.containsKey("numberOfItems")) {
-        AsyncResponseStream *response = request->beginResponseStream("application/json");
-        DynamicJsonBuffer jsonBuffer;
         int nitens=root["numberOfItems"];
-        JsonObject &root2 = jsonBuffer.createObject();
+
+        AsyncResponseStream *response = request->beginResponseStream("application/json");
+        DynamicJsonDocument doc(512);
+        JsonObject root2 = doc.to<JsonObject>();
 
         root2["pumpStatus"] = (int)_pump->getStatus();
-        JsonArray& array = root2.createNestedArray("values");
+
+        
+        JsonArray array = root2.createNestedArray("values");
 
         for (int i=0; i<nitens; i++)
         {
-          JsonObject& object = array.createNestedObject();
+          JsonObject object = array.createNestedObject();
           object["amps"] = _pump->getAmps();
           object["bars"] = _tank->getBars();
           object["maxBars"] = _config->maxBars;
@@ -232,44 +230,9 @@ server.on("/getAdmin", HTTP_POST, [this](AsyncWebServerRequest *request){
           object["pumpStatusValue"] = (int)_pump->getStatus();
         }       
 
-        root2.printTo(*response);
+        serializeJson(root2,*response);
         request->send(response);
-      }
-      else 
-      {
-        request->send(404, "text/plain", "Error");
-      }
-    } 
-    else 
-    {  
-      request->send(404, "text/plain", "Error");
-    }
-  });
-
-
-  server.on("/startStop", HTTP_POST, [this](AsyncWebServerRequest *request){
-    if(!request->authenticate(_config->http_username, _config->http_password))
-        return request->requestAuthentication();
-  }, NULL, [this](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total){
-    DynamicJsonBuffer jsonBuffer;
-    JsonObject& root = jsonBuffer.parseObject((const char*)data);
-    if (root.success()) {
-      if (root.containsKey("startStop")) {
-        if(root["startStop"]==0)
-        {
-          _config->wifiMode = ACCESSPOINT;
-          strcpy(_config->wifiAp.network.ssid, root["apModeSSID"].as<char*>());
-          strcpy(_config->wifiAp.network.key, root["apModePass"].as<char*>());
-          _wifi->start();
-        }
-
-        AsyncResponseStream *response = request->beginResponseStream("application/json");
-        DynamicJsonBuffer jsonBuffer;
-        JsonObject &root = jsonBuffer.createObject();
-
-        root["startStop"] = _config->http_password;
-        root.printTo(*response);
-        request->send(response);
+        
       }
       else 
       {
@@ -287,9 +250,9 @@ server.on("/getAdmin", HTTP_POST, [this](AsyncWebServerRequest *request){
     if(!request->authenticate(_config->http_username, _config->http_password))
         return request->requestAuthentication();
   }, NULL, [this](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total){
-    DynamicJsonBuffer jsonBuffer;
-    JsonObject& root = jsonBuffer.parseObject((const char*)data);
-    if (root.success()) {
+    DynamicJsonDocument root(512);
+    deserializeJson(root, (const char*)data);
+    if (!root.isNull()) {
       if (root.containsKey("wifiMode")) {
         if((int)root["wifiMode"]==WifiMode::ACCESSPOINT)
         {
@@ -299,14 +262,8 @@ server.on("/getAdmin", HTTP_POST, [this](AsyncWebServerRequest *request){
         }
         else if((int)root["wifiMode"]==WifiMode::CLIENT)
         {
-          //_wifi->disconnect();
           _config->wifiMode = CLIENT;
           _config->wifiClient.dhcpClient= root["clientDhcpMode"].as<bool>();
-           Serial.println("Client mode");
-           Serial.print("DHCP mode="); Serial.println(_config->wifiClient.dhcpClient);
-          //
-           Serial.println(root["clientModeSSID"].as<char*>());
-           Serial.println(root["clientModePass"].as<char*>());
           strcpy(_config->wifiClient.network.ssid, root["clientModeSSID"].as<char*>());
           strcpy(_config->wifiClient.network.key, root["clientModePass"].as<char*>());
           if(!_config->wifiClient.dhcpClient)

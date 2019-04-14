@@ -29,7 +29,7 @@ bool blink=false;
 void setup() {
 
   //serial communication
-  Serial.begin ( 115200 );
+  Serial.begin ( 74880 );
 
   display.printProgress();
 
