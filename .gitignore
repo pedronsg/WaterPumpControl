@@ -45,3 +45,4 @@
 .pioenvs/
 .clang_complete
 .gcc-flags.json
+.vscode/ipch/c383960baeb721ad/WIFI.ipch
