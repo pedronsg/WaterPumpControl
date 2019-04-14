@@ -1,19 +1,11 @@
-//#include <Arduino.h>
 #include "webServer.h"
-//#include "html_handlers.h"
 #include "wifi.h"
-//#include <WiFiClient.h>
 #include <Adafruit_ADS1015.h>
 #include "eeprom.h"
 #include "tank.h"
 #include "pump.h"
 #include "display.h"
 #include "spiffs.h"
-
-//#include "images.h"
-
-//#define ssid      "Linksys"      // WiFi SSID
-//#define password  "inesdanielapedro2011"  // WiFi password
 
 Adafruit_ADS1115 ads;
 float amps=0;
