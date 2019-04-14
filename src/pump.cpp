@@ -91,7 +91,7 @@ void Pump::checkFlood()
     floodMillis = millis();
   }
 
-  if(!timersFloodSet && ((millis()-floodMillis)>configs.maxRunningtime*1000*60*60) &&
+  if(!timersFloodSet && ((millis()-floodMillis)>(uint64_t)configs.maxRunningtime*1000*60*60) &&
     status==PumpStatus::ON  && amps>=configs.minAmps && amps<=configs.maxAmps)
   {
     status=PumpStatus::FLOODPROTECTION;
