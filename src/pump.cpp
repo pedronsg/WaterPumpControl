@@ -5,9 +5,13 @@
 
 
 Pump::Pump(){
-  status=OFF;
-  previousStatus=OFF;
-  _needInit=false;
+  init();
+}
+
+void Pump::init()
+{
+  status=PumpStatus::OFF;
+  previousStatus=PumpStatus::OFF;
   timersOverloadSet=true;
   timersNoWaterSet=true;
   timersFloodSet=true;
@@ -15,8 +19,8 @@ Pump::Pump(){
   floodMillis=0;
   noWaterMillis=0;
   overloadMillis=0;
+  webStop=false;
 }
-
 
 void Pump::set(float amp, ConfigData conf)
 {
@@ -38,14 +42,19 @@ float Pump::getAmps()
 
 void Pump::start()
 {
-  status=ON;
-  digitalWrite(PUMP_PIN, HIGH);
+  if (!webStop)
+  {
+    status=PumpStatus::ON;
+    digitalWrite(PUMP_PIN, HIGH);
+  }  
 }
 
-void Pump::stop()
+void Pump::stop(const bool &isWebCommand)
 {
-  status=OFF;
-  previousStatus=OFF;
+  webStop=isWebCommand;
+  timersNoWaterSet=true;
+  status=PumpStatus::OFF;
+  previousStatus=PumpStatus::OFF;
   digitalWrite(PUMP_PIN, LOW);
 }
 
@@ -53,15 +62,15 @@ void Pump::stop()
 bool Pump::unprotectedStartTime()
 {
   bool rtn=false;
-  if(previousStatus==OFF && status==ON)
+  if(previousStatus==PumpStatus::OFF && status==PumpStatus::ON)
   {
     unprotectedStartMillis=millis();
     rtn=true;
-    previousStatus=ON;
+    previousStatus=PumpStatus::ON;
   }
-  else if(previousStatus==ON &&
+  else if(previousStatus==PumpStatus::ON &&
     (millis()-unprotectedStartMillis)<=configs.unprotectedStartDelay &&
-    status==ON)
+    status==PumpStatus::ON)
   {
     rtn=true;
   }
@@ -72,7 +81,7 @@ bool Pump::unprotectedStartTime()
 //Pump flood protection
 void Pump::checkFlood()
 {
-  if(_needInit)
+  if(status==PumpStatus::FLOODPROTECTION)
   {
     return;
   }
@@ -82,11 +91,10 @@ void Pump::checkFlood()
     floodMillis = millis();
   }
 
-  if(!timersFloodSet && ((millis()-floodMillis)>configs.maxRunningtime*1000*60) &&
-    status==ON  && amps>=configs.minAmps && amps<=configs.maxAmps)
+  if(!timersFloodSet && ((millis()-floodMillis)>configs.maxRunningtime*1000*60*60) &&
+    status==PumpStatus::ON  && amps>=configs.minAmps && amps<=configs.maxAmps)
   {
-    status=FLOODPROTECTION;
-    _needInit=true;
+    status=PumpStatus::FLOODPROTECTION;
     digitalWrite(PUMP_PIN, LOW);
   }
 
@@ -102,23 +110,29 @@ void Pump::checkFlood()
 //Pump no Water Protection
 void Pump::checkNoWater()
 {
-  if(_needInit)
+  if(status == PumpStatus::NOWATER)
   {
     return;
   }
-  if (timersNoWaterSet && amps<configs.minAmps && status==ON)
+
+  //entered no water mode, start timer
+  if (timersNoWaterSet && amps<configs.minAmps && status==PumpStatus::ON)
   {
     timersNoWaterSet=false;
     noWaterMillis = millis();
+    return;
   }
 
-  if(!timersNoWaterSet && amps<configs.minAmps && millis()-noWaterMillis>configs.noWaterTime*1000 && status==ON)
+  //no water time > time interval
+  if(!timersNoWaterSet && amps<configs.minAmps && ((millis()-noWaterMillis)>(configs.noWaterTime*1000)) && status==PumpStatus::ON)
   {
-    status=NOWATER;
-    _needInit=true;
+    noWaterMillis = millis();
+    status=PumpStatus::NOWATER;
     digitalWrite(PUMP_PIN, LOW);
+    return;
   }
 
+  //normal mode
   if(amps>=configs.minAmps)
   {
     timersNoWaterSet=true;
@@ -130,7 +144,7 @@ void Pump::checkNoWater()
 //pump overcurrent protection
 void Pump::checkOverload()
 {
-  if(_needInit)
+  if(status == PumpStatus::OVERLOAD)
   {
     return;
   }
@@ -142,8 +156,7 @@ void Pump::checkOverload()
 
   if(!timersOverloadSet && amps>configs.maxAmps && millis()-overloadMillis>DEBOUNCE)
   {
-    status=OVERLOAD;
-    _needInit=true;
+    status = PumpStatus::OVERLOAD;
     digitalWrite(PUMP_PIN, LOW);
   }
 
@@ -164,26 +177,22 @@ String Pump::getTextStatus()
 {
   String rtn="UNKNOWN";
   switch (status) {
-    case OFF:
+    case PumpStatus::OFF:
       rtn="OFF";
       break;
-    case ON:
+    case PumpStatus::ON:
       rtn="ON";
       break;
-    case NOWATER:
+    case PumpStatus::NOWATER:
       rtn="NO WATER";
       break;
-    case OVERLOAD:
+    case PumpStatus::OVERLOAD:
       rtn="OVERLOAD";
       break;
-    case FLOODPROTECTION:
+    case PumpStatus::FLOODPROTECTION:
       rtn="PROTECTION";
       break;
   }
   return rtn;
 }
 
-bool Pump::needInit()
-{
-  return _needInit;
-}

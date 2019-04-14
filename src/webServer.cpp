@@ -17,19 +17,6 @@ void WebServer::init(ConfigData &config, Eeprom &eeprom, WifiPump &wifiPump, Pum
 
 void WebServer::start()
 {
-  //starting http server
-  //filling html, bootstrap and css
-//  css = loadFile("jumbotron-narrow.css");
-//  bootstrap = loadFile("bootstrap.css");
-//  html = loadFile("index.html");
-//  server.on ("/", std::bind(&WebServer::handleRoot, this) );
-
-//server.serveStatic("/index.html", SPIFFS, "/www/");
-//server.serveStatic("/", SPIFFS, "/www/index.html");
-//server.serveStatic("/control/", SPIFFS, "/www/control.html");
-  //
-
-
   server.on("/", HTTP_GET, [this](AsyncWebServerRequest *request){
     if(!request->authenticate(_config->http_username, _config->http_password))
         return request->requestAuthentication();
@@ -108,12 +95,16 @@ void WebServer::start()
     if (root.success()) {
       if (root.containsKey("startStop")) {
         if(root["startStop"])
-        {
-          _pump->start();
+        { //start pump only if tank isn't full
+          if(_tank->getStatus()!=TankStatus::FULL)
+          {
+            _pump->init();
+            _pump->start();
+          }
         }
         else
         {
-          _pump->stop();
+          _pump->stop(true);
         }
         request->send(200, "text/plain", "Success.");
       }
@@ -191,8 +182,6 @@ void WebServer::start()
   root["clientModeGateway"] =_config->wifiClient.network.gateway;
 	root["clientModeDns1"] = _config->wifiClient.network.dns;
 
-
-
   //root["ssid"] = WiFi.SSID();
   root.printTo(*response);
   request->send(response);
@@ -240,6 +229,7 @@ server.on("/getAdmin", HTTP_POST, [this](AsyncWebServerRequest *request){
           object["bars"] = _tank->getBars();
           object["maxBars"] = _config->maxBars;
           object["minBars"] = _config->minBars;
+          object["pumpStatusValue"] = (int)_pump->getStatus();
         }       
 
         root2.printTo(*response);
@@ -301,14 +291,13 @@ server.on("/getAdmin", HTTP_POST, [this](AsyncWebServerRequest *request){
     JsonObject& root = jsonBuffer.parseObject((const char*)data);
     if (root.success()) {
       if (root.containsKey("wifiMode")) {
-        if(root["wifiMode"]==0)
+        if((int)root["wifiMode"]==WifiMode::ACCESSPOINT)
         {
           _config->wifiMode = ACCESSPOINT;
           strcpy(_config->wifiAp.network.ssid, root["apModeSSID"].as<char*>());
           strcpy(_config->wifiAp.network.key, root["apModePass"].as<char*>());
-          _wifi->start();
         }
-        else if(root["wifiMode"]==1)
+        else if((int)root["wifiMode"]==WifiMode::CLIENT)
         {
           //_wifi->disconnect();
           _config->wifiMode = CLIENT;
@@ -328,12 +317,15 @@ server.on("/getAdmin", HTTP_POST, [this](AsyncWebServerRequest *request){
             strcpy(_config->wifiClient.network.dns, root["clientModeDns1"].as<char*>());
             Serial.println(_config->wifiClient.network.ip);
           }
-          _wifi->start();
         }
-
+        else if((int)root["wifiMode"]==WifiMode::DISABLED) 
+        {
+          _config->wifiMode = DISABLED;
+        }
         if(_eeprom->save(*_config))
         {
           request->send(200, "text/plain", "Success.");
+          _wifi->start();
         }
         else
         {
@@ -346,10 +338,21 @@ server.on("/getAdmin", HTTP_POST, [this](AsyncWebServerRequest *request){
   });
 
 
-  server.on("/cmdReboot", HTTP_POST, [](AsyncWebServerRequest *request){
+  server.on("/reboot", HTTP_POST, [this](AsyncWebServerRequest *request){
   request->send(200, "text/plain", "Success.");
-      Serial.println ( "reboot web" );
-  ESP.restart();
+      Serial.println ( "reboot from web" );
+      _pump->stop(true);
+      digitalWrite(2, LOW);
+      ESP.restart();
+  });
+
+  server.on("/reset", HTTP_POST, [this](AsyncWebServerRequest *request){
+  request->send(200, "text/plain", "Success.");
+      Serial.println ( "reset from web" );
+      _pump->stop(true);
+      digitalWrite(2, LOW);
+      _eeprom->reset();
+      ESP.restart();
   });
 
   server.on("/logout", HTTP_GET, [](AsyncWebServerRequest *request){
@@ -368,36 +371,3 @@ server.on("/getAdmin", HTTP_POST, [this](AsyncWebServerRequest *request){
   server.begin();
   Serial.println ( "HTTP server started" );
 }
-
-
-
-
-
-
-
-
-
-//
-// bool loadFromSpiffs(String path){
-//   String dataType = "text/plain";
-//   if(path.endsWith("/")) path += "index.htm";
-//
-//   if(path.endsWith(".src")) path = path.substring(0, path.lastIndexOf("."));
-//   else if(path.endsWith(".htm")) dataType = "text/html";
-//   else if(path.endsWith(".css")) dataType = "text/css";
-//   else if(path.endsWith(".js")) dataType = "application/javascript";
-//   else if(path.endsWith(".png")) dataType = "image/png";
-//   else if(path.endsWith(".gif")) dataType = "image/gif";
-//   else if(path.endsWith(".jpg")) dataType = "image/jpeg";
-//   else if(path.endsWith(".ico")) dataType = "image/x-icon";
-//   else if(path.endsWith(".xml")) dataType = "text/xml";
-//   else if(path.endsWith(".pdf")) dataType = "application/pdf";
-//   else if(path.endsWith(".zip")) dataType = "application/zip";
-//   File dataFile = SPIFFS.open(path.c_str(), "r");
-//   if (server.hasArg("download")) dataType = "application/octet-stream";
-//   if (server.streamFile(dataFile, dataType) != dataFile.size()) {
-//   }
-//
-//   dataFile.close();
-//   return true;
-// }

@@ -2,7 +2,7 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <title>Water Pump Control</title>  
+    <title>PumpControl</title>  
     <link href="/bootstrap.css" rel="stylesheet">
     <link href="/jumbotron-narrow.css" rel="stylesheet">
 	<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
@@ -50,9 +50,9 @@
 				   document.getElementById("minBars").value = settingsObj.minBars.toFixed(2);
 				   document.getElementById("minAmps").value = settingsObj.minAmps.toFixed(2);
 				   document.getElementById("maxAmps").value = settingsObj.maxAmps.toFixed(2);	   
-				   document.getElementById("maxRunTime").value = settingsObj.maxRunTime.toFixed(2);	
-				   document.getElementById("noWater").value = settingsObj.noWater.toFixed(2);
-				   document.getElementById("unprotectedDelay").value = settingsObj.unprotectedDelay.toFixed(2);				   
+				   document.getElementById("maxRunTime").value = settingsObj.maxRunTime;	
+				   document.getElementById("noWater").value = settingsObj.noWater;
+				   document.getElementById("unprotectedDelay").value = settingsObj.unprotectedDelay;				   
 			   }
 			}
     };
@@ -145,8 +145,8 @@
 				  <input id="unprotectedDelay" name="unprotectedDelay" step="1" min="0" max="60000" type="number" placeholder="2000" class="form-control input-md" data-toggle="tooltip" title="Time without any current protection, used to discard start spike!" required oninvalid="this.setCustomValidity('Invalid delay value!')" oninput="this.setCustomValidity('')">
 				</div>
 				<div class="form-group">
-				  <label  for="maxRunTime">Max Running Time (Seconds)</label>  
-				  <input id="maxRunTime" name="maxRunTime" step="1" min="30"  max="36000" type="number" placeholder="3600" class="form-control input-md" data-toggle="tooltip" title="Max time running Pump, after this time Pump will stop automatically to avoid floods"c
+				  <label  for="maxRunTime">Max Running Time (Hours)</label>  
+				  <input id="maxRunTime" name="maxRunTime" step="1" min="30"  max="24" type="number" placeholder="1" class="form-control input-md" data-toggle="tooltip" title="Max time running the Pump, after this time the Pump will stop automatically to avoid floods" required oninvalid="this.setCustomValidity('Invalid time value!')" oninput="this.setCustomValidity('')">
 				</div>
 				<div class="form-group">
 				  <label  for="noWater">No Water detection (Seconds)</label>  

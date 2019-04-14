@@ -46,9 +46,9 @@ void Eeprom::reset()
   data.maxBars=3.00;
   strcpy(data.http_password,"admin");
   strcpy(data.http_username,"admin");
-  data.unprotectedStartDelay=5000; //milliseconds avoiding pump protection to discard high amp values
-  data.maxRunningtime=30; //maximum value of minutes for flood protection
-  data.noWaterTime=20; //seconds before enter in nowater mode
+  data.unprotectedStartDelay=2000; //milliseconds avoiding pump protection to discard high amp values
+  data.maxRunningtime=3; //maximum value of hours for flood protection
+  data.noWaterTime=15; //seconds before enter in nowater mode
   data.wifiMode = ACCESSPOINT;
   data.wifiAp.dhcpServer=true;
   data.wifiClient.dhcpClient=true;

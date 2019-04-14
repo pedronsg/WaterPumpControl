@@ -53,7 +53,7 @@ void setup() {
 
   // read eeprom data
   eeprom.begin();
-  eeprom.reset();
+  //eeprom.reset();
   config = eeprom.read();
 
   delay ( 500 );
@@ -91,14 +91,16 @@ void loop() {
   pump.set(amps,config);
   tank.set(bars,config);
 
-  if(!pump.needInit())
+  if(pump.getStatus() != PumpStatus::NOWATER && 
+  pump.getStatus() != PumpStatus::FLOODPROTECTION && 
+  pump.getStatus() != PumpStatus::OVERLOAD)
   {
-    if(tank.getStatus()==EMPTY)
+    if(tank.getStatus()==TankStatus::EMPTY)
     {
       pump.start();
-    }else if(tank.getStatus()==FULL)
+    }else if(tank.getStatus()==TankStatus::FULL)
     {
-      pump.stop();
+      pump.stop(false);
     }
   }
 

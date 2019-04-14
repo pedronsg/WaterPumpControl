@@ -45,7 +45,7 @@ void WifiPump::start()
           dns= dns.fromString(_config->wifiClient.network.dns);
           WiFi.config(ip, gateway, subnet, dns);
         }
-
+        WiFi.hostname("PumpControl");
         WiFi.begin(_config->wifiClient.network.ssid, _config->wifiClient.network.key);
     }
     break;
@@ -62,7 +62,7 @@ void WifiPump::start()
         dns= dns.fromString(_config->wifiClient.network.dns);
         WiFi.config(ip, gateway, subnet, dns);
       }
-
+      WiFi.hostname("PumpControl");
       WiFi.begin(_config->wifiClient.network.ssid, _config->wifiClient.network.key);
       Serial.print("Connecting to ");
       Serial.print(_config->wifiClient.network.ssid); Serial.println(" ...");

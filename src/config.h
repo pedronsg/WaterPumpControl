@@ -47,7 +47,7 @@ struct ApMode{
       float minBars;
       float maxBars;
       uint16_t unprotectedStartDelay; //milliseconds avoiding pump protection to discard high amp values
-      uint8_t maxRunningtime; //maximum value of minutes for flood protection
+      uint8_t maxRunningtime; //maximum value of hours for flood protection
       uint8_t noWaterTime; //seconds before enter in nowater mode
       char http_username[64];
       char http_password[64];

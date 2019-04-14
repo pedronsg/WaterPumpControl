@@ -16,7 +16,6 @@ enum PumpStatus
 
 class Pump{
 private:
-  bool _needInit;
   uint64_t unprotectedStartMillis;
   uint64_t floodMillis;
   uint64_t noWaterMillis;
@@ -35,15 +34,15 @@ private:
   void checkNoWater();
   void checkOverload();
 public:
-  bool needInit();
+  bool webStop;
   void start();
-  void stop();
+  void stop(const bool &isWebCommand);
   void set(float amp, ConfigData conf);
   PumpStatus getStatus();
   String  getTextStatus();
   float getAmps();
+  void init();
   Pump();
-
 };
 
 #endif

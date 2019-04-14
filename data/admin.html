@@ -2,7 +2,7 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <title>Water Pump Control</title>
+    <title>PumpControl</title>
     <link href="/bootstrap.css" rel="stylesheet">
     <link href="/jumbotron-narrow.css" rel="stylesheet">
 	<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
@@ -63,14 +63,7 @@
 				   document.getElementById("httpUser").value = settingsObj.httpUser;	
 				   document.getElementById("httpPass").value = settingsObj.httpPass;
 				   document.getElementById("httpPass2").value = settingsObj.httpPass;
-				   //document.getElementById("maxAmps").value = settingsObj.maxAmps.toFixed(2);		
 			   }
-			   //else if (xmlhttp.status == 400) {
-				  //alert('There was an error 400');
-			   //}
-			   //else {
-				   //alert('something else other than 200 was returned');
-			   //}	 
 			}
 		};
 		xmlhttp.open("POST", "/getAdmin", true);
@@ -81,10 +74,8 @@
 	{
 		var xmlHttp = new XMLHttpRequest();
 		xmlHttp.open("POST", "/"+cmd,true);
-		
-		//Send the proper header information along with the request
 		xmlHttp.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
-		xmlHttp.onreadystatechange = function() {//Call a function when the state changes.
+		xmlHttp.onreadystatechange = function() {
 			if(xmlHttp.readyState == 4 && xmlHttp.status == 200) {
 				alert(xmlHttp.responseText);
 			}
@@ -119,6 +110,10 @@
 				{
 					alert(xmlHttp.responseText);
 				}
+				else
+				{
+					alert("Command failed!");
+				}
 			}
 			xmlHttp.open("POST", "/setAdmin",true); 
 			xmlHttp.send(jsonString); 		
@@ -127,11 +122,8 @@
 	
 	
 	function showAp() {
-		// Get the checkbox
 		var checkBox = document.getElementById("apMode");
-		// Get the output text
 		var obj = document.getElementById("apNameForm");
-		// If the checkbox is checked, display the output text
 		if (checkBox.checked == true){
 			obj.style.display = "block";
 		} else {
@@ -181,10 +173,10 @@
 				  <input id="httpPass2" name="httpPass2" type="password" class="form-control input-md" data-toggle="tooltip" title="Repeat password"  required oninput="this.setCustomValidity('')">
 				</div>
 
-				<legend>Https</legend>			
+				<!-- <legend>Https</legend>			
 				<div class="form-group">
 				<input name="clientMode" id="clientMode" type="checkbox"> Use Https (needs reboot)
-				</div>
+				</div> -->
 
 				<div class="form-group">
 					<p class="text-right">
@@ -200,7 +192,6 @@
       <footer class="footer">
         <p>&copy; PumpControl @2019 by <a href="mailto:pedronsg@gmail.com">pedronsg@gmail.com</a></p>
       </footer>
-
     </div>
   </body>
 </html>
