@@ -45,7 +45,6 @@ void WebServer::start()
   server.on("/bootstrap.css", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send(SPIFFS,  "/bootstrap.css","text/css");
   });
-
   server.on("/jquery-2.1.0.js", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send(SPIFFS,  "/jquery-2.1.0.js","application/javascript");
   });
@@ -61,7 +60,12 @@ void WebServer::start()
   server.on("/favicon-16x16.png", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send(SPIFFS, "/favicon-16x16.png","image/png");
   });
-
+  server.on("/Chart.bundle.js", HTTP_GET, [](AsyncWebServerRequest *request){
+  request->send(SPIFFS,  "/Chart.bundle.js","application/javascript");
+  });
+  server.on("/utils.js", HTTP_GET, [](AsyncWebServerRequest *request){
+  request->send(SPIFFS,  "/utils.js","application/javascript");
+  });
 
   server.on("/getSettings", HTTP_POST, [this](AsyncWebServerRequest *request){
       if(!request->authenticate(_config->http_username, _config->http_password))
@@ -275,6 +279,24 @@ server.on("/getAdmin", HTTP_POST, [this](AsyncWebServerRequest *request){
             Serial.println(_config->wifiClient.network.ip);
           }
         }
+        else if((int)root["wifiMode"]==WifiMode::ACCESSPOINTCLIENT)
+        {
+          _config->wifiMode = WifiMode::ACCESSPOINTCLIENT;
+
+          strcpy(_config->wifiAp.network.ssid, root["apModeSSID"].as<char*>());
+          strcpy(_config->wifiAp.network.key, root["apModePass"].as<char*>());
+
+          _config->wifiClient.dhcpClient= root["clientDhcpMode"].as<bool>();
+          strcpy(_config->wifiClient.network.ssid, root["clientModeSSID"].as<char*>());
+          strcpy(_config->wifiClient.network.key, root["clientModePass"].as<char*>());
+          if(!_config->wifiClient.dhcpClient)
+          {
+            strcpy(_config->wifiClient.network.ip, root["clientModeIp"].as<char*>());
+            strcpy(_config->wifiClient.network.mask, root["clientModeMask"].as<char*>());
+            strcpy(_config->wifiClient.network.gateway, root["clientModeGateway"].as<char*>());
+            strcpy(_config->wifiClient.network.dns, root["clientModeDns1"].as<char*>());
+          }
+        }
         else if((int)root["wifiMode"]==WifiMode::DISABLED) 
         {
           _config->wifiMode = DISABLED;
@@ -315,14 +337,6 @@ server.on("/getAdmin", HTTP_POST, [this](AsyncWebServerRequest *request){
   server.on("/logout", HTTP_GET, [](AsyncWebServerRequest *request){
   request->requestAuthentication();
   request->send(200, "text/plain", "Success.");
-  });
-
-  server.on("/Chart.bundle.js", HTTP_GET, [](AsyncWebServerRequest *request){
-  request->send(SPIFFS,  "/Chart.bundle.js","application/javascript");
-  });
-
-  server.on("/utils.js", HTTP_GET, [](AsyncWebServerRequest *request){
-  request->send(SPIFFS,  "/utils.js","application/javascript");
   });
 
   server.begin();
