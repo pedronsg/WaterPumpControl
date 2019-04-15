@@ -207,46 +207,17 @@ server.on("/getAdmin", HTTP_POST, [this](AsyncWebServerRequest *request){
  server.on("/getPumpStatus", HTTP_POST, [this](AsyncWebServerRequest *request){
     if(!request->authenticate(_config->http_username, _config->http_password))
         return request->requestAuthentication();
-  }, NULL, [this](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total){
-    DynamicJsonDocument root(64);
-    deserializeJson(root, (const char*)data);
+    AsyncResponseStream *response = request->beginResponseStream("application/json");
+    DynamicJsonDocument root(512);
 
-    if (!root.isNull()) {
-      if (root.containsKey("numberOfItems")) {
-        int nitens=root["numberOfItems"];
+    root["amps"] = _pump->getAmps();
+    root["bars"] = _tank->getBars();
+    root["maxBars"] = _config->maxBars;
+    root["minBars"] = _config->minBars;
+    root["pumpStatusValue"] = (int)_pump->getStatus();   
 
-        AsyncResponseStream *response = request->beginResponseStream("application/json");
-        DynamicJsonDocument doc(512);
-        JsonObject root2 = doc.to<JsonObject>();
-
-        root2["pumpStatus"] = (int)_pump->getStatus();
-
-        
-        JsonArray array = root2.createNestedArray("values");
-
-        for (int i=0; i<nitens; i++)
-        {
-          JsonObject object = array.createNestedObject();
-          object["amps"] = _pump->getAmps();
-          object["bars"] = _tank->getBars();
-          object["maxBars"] = _config->maxBars;
-          object["minBars"] = _config->minBars;
-          object["pumpStatusValue"] = (int)_pump->getStatus();
-        }       
-
-        serializeJson(root2,*response);
-        request->send(response);
-        
-      }
-      else 
-      {
-        request->send(404, "text/plain", "Error");
-      }
-    } 
-    else 
-    {  
-      request->send(404, "text/plain", "Error");
-    }
+    serializeJson(root,*response);
+    request->send(response); 
   });
 
 
