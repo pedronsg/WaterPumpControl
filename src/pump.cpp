@@ -1,7 +1,7 @@
 #include <Arduino.h>
 #include "pump.h"
 
-
+#define NANOHOUR 3600000ul
 
 
 Pump::Pump(){
@@ -91,7 +91,7 @@ void Pump::checkFlood()
     floodMillis = millis();
   }
 
-  if(!timersFloodSet && ((millis()-floodMillis)>(uint64_t)configs.maxRunningtime*1000*60*60) &&
+  if(!timersFloodSet && ((millis()-floodMillis)>(uint64_t)configs.maxRunningtime*NANOHOUR) &&
     status==PumpStatus::ON  && amps>=configs.minAmps && amps<=configs.maxAmps)
   {
     status=PumpStatus::FLOODPROTECTION;
