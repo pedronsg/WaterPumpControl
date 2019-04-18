@@ -16,11 +16,29 @@ void WifiPump::disconnect()
   WiFi.disconnect();
 }
 
+const char* WifiPump::getIpAddress()
+{
+  if (!(uint32_t)WiFi.localIP())
+  {
+    return WiFi.localIP().toString().c_str();
+  }
+  else
+  {
+    return WiFi.softAPIP().toString().c_str();
+  }
+  
+}
+
+void WifiPump::staCheck(){
+  _staTick.detach();
+  if(!(uint32_t)WiFi.localIP()){
+    WiFi.mode(WIFI_AP);
+  }
+}
+
 void WifiPump::start()
 {
   disconnect();
-
-//  delay(10000);
 
   switch (_config->wifiMode)
   {
@@ -28,14 +46,14 @@ void WifiPump::start()
     case ACCESSPOINT:
     {
       WiFi.mode(WIFI_AP);
+      WiFi.hostname("PumpControl");
       WiFi.softAP(_config->wifiAp.network.ssid, _config->wifiAp.network.key);
-      //display.printInitIp(WiFi.softAPIP().toString());
     }
     break;
     case CLIENT:
     {
       WiFi.mode(WIFI_STA);
-    //  WiFi.reconnect();
+
         if(!_config->wifiClient.dhcpClient)
         {
           IPAddress ip, dns, gateway, subnet;
@@ -51,6 +69,10 @@ void WifiPump::start()
     break;
     case ACCESSPOINTCLIENT:
     {
+      _staTick.attach(10, std::bind(&WifiPump::staCheck, this));
+
+      WiFi.mode(WIFI_AP_STA);
+      
       WiFi.softAP(_config->wifiAp.network.ssid, _config->wifiAp.network.key);
 
       if(!_config->wifiClient.dhcpClient)
@@ -62,22 +84,19 @@ void WifiPump::start()
         dns= dns.fromString(_config->wifiClient.network.dns);
         WiFi.config(ip, gateway, subnet, dns);
       }
+
       WiFi.hostname("PumpControl");
       WiFi.begin(_config->wifiClient.network.ssid, _config->wifiClient.network.key);
+
       Serial.print("Connecting to ");
       Serial.print(_config->wifiClient.network.ssid); Serial.println(" ...");
-
-      // int i = 0;
-      // while (WiFi.status() != WL_CONNECTED) { // Wait for the Wi-Fi to connect
-      //   delay(1000);
-      //   Serial.print(++i); Serial.print(' ');
-      // }
     }
     break;
     case DISABLED:
     {
       WiFi.softAPdisconnect();
       WiFi.disconnect();
+      WiFi.mode(WIFI_OFF);
     }
     break;
     default:
