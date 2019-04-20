@@ -16,7 +16,7 @@ class WifiPump
     void init(ConfigData &config);
     void start();
     void disconnect();
-    const char* getIpAddress();
+    String getIpAddress();
     void staCheck();
 };
 

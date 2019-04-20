@@ -16,15 +16,16 @@ void WifiPump::disconnect()
   WiFi.disconnect();
 }
 
-const char* WifiPump::getIpAddress()
+String WifiPump::getIpAddress()
 {
-  if (!(uint32_t)WiFi.localIP())
+ // Serial.println(WiFi.localIP().toString());
+  if (WiFi.localIP().toString() != "(IP unset)")
   {
-    return WiFi.localIP().toString().c_str();
+    return WiFi.localIP().toString();
   }
   else
   {
-    return WiFi.softAPIP().toString().c_str();
+    return WiFi.softAPIP().toString();
   }
   
 }
