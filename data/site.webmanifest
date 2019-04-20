@@ -1,6 +1,6 @@
 {
-    "name": "",
-    "short_name": "",
+    "name": "PumpControl",
+    "short_name": "PumpControl",
     "icons": [
         {
             "src": "/android-chrome-192x192.png",
