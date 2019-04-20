@@ -7,6 +7,7 @@
 #include "display.h"
 #include "spiffs.h"
 
+
 Adafruit_ADS1115 ads;
 float amps=0;
 float bars=0;
@@ -18,38 +19,55 @@ Pump pump;
 Eeprom eeprom;
 
 WebServer webServer;
+ServerStatus WebServer::status = ServerStatus::RUNNING;
+uint8_t WebServer::firmwareProgress = 0;
+uint32_t WebServer::newFirmwareSize = 0;
 Display display;
 Spiffs spiffs;
 
-uint64_t serialMillis=0;
+uint64_t blinkMillis=0;
 bool blink=false;
-
-
 
 void setup() {
 
   //serial communication
   Serial.begin ( 74880 );
-
-  display.printProgress();
-
+  
+  display.init();
+  display.printFirmwareVersion();
+  display.printProgressValue(10,String("loading...").c_str());
   //SPIFFS files initialization
   spiffs.begin();
-
+  display.printProgressValue(20,String("loading...").c_str());
   //PUMP pin
   pinMode(PUMP_PIN, OUTPUT);
   digitalWrite(PUMP_PIN, LOW);
 
   //STOP Switch
   pinMode(STOP_SWITCH, INPUT);
-
+  display.printProgressValue(30,String("loading...").c_str());
   // read eeprom data
   eeprom.begin();
+
+  display.printProgressValue(50,String("loading...").c_str());
   //eeprom.reset();
+
+  /*delay(7000);
+  rst_info *rinfo= ESP.getResetInfoPtr();
+  Serial.println("Reset reason=");
+  Serial.print(rinfo->reason);
+  Serial.println("");
+  if(rinfo->reason == REASON_EXT_SYS_RST)
+  {
+    eeprom.reset();
+ //   Serial.println("Reset...");
+  }
+*/
+
   config = eeprom.read();
 
   delay ( 500 );
-
+  display.printProgressValue(70,String("loading...").c_str());
   //ads initialization
   ads.setGain(GAIN_ONE); // 1x gain   +/- 4.096V  1 bit = 2mV      0.125mV
   ads.begin();
@@ -57,11 +75,14 @@ void setup() {
   delay ( 500 );
   wifi.init(config);
   wifi.start();
+  display.printProgressValue(80,String("loading...").c_str());
   webServer.init(config, eeprom, wifi, pump, tank);
   webServer.start();
+  display.printProgressValue(100,String("loading...").c_str());
+  delay ( 500 );
+  display.printInitIp(wifi.getIpAddress());
+  //display.clear();
 }
-
-
 
 
 
@@ -85,7 +106,8 @@ void loop() {
 
   if(pump.getStatus() != PumpStatus::NOWATER && 
   pump.getStatus() != PumpStatus::FLOODPROTECTION && 
-  pump.getStatus() != PumpStatus::OVERLOAD)
+  pump.getStatus() != PumpStatus::OVERLOAD &&
+  webServer.status == ServerStatus::RUNNING)
   {
     if(tank.getStatus()==TankStatus::EMPTY)
     {
@@ -96,31 +118,43 @@ void loop() {
     }
   }
 
-
-//  server.handleClient();
-//  webServer.update();
-
-  //each second debug messages
-  if(millis()-serialMillis>1000)
+  switch (webServer.status)
   {
-    Serial.print("Amps: "); Serial.println(amps);
-    Serial.print("Bars: "); Serial.println(bars);
-    Serial.print("PumpStatus: "); Serial.println(pump.getStatus());
-    Serial.print("TankStatus: "); Serial.println(tank.getStatus());
-    Serial.println(" ");
+    case ServerStatus::WRITINGFIRMWARE:
+      pump.stop(true);
+      display.clear();
+      display.drawProgressBarValue(webServer.firmwareProgress);
+      display.drawMsg(String("flashing...").c_str());
+      Serial.printf("Flashing %d%%\n",webServer.firmwareProgress);
+      display.print();
+    break;
+    case ServerStatus::RUNNING:
+      if(millis()-blinkMillis>1000)
+      {
+        display.clear();
+        display.drawBars(config.minBars, config.maxBars, bars);
+        display.drawAmps(config.minAmps, config.maxAmps, amps);
+        if (blink) display.drawMsg(pump.getTextStatus().c_str());
 
-    display.drawBars(config.minBars, config.maxBars, bars);
-    display.drawAmps(config.minAmps, config.maxAmps, amps);
-
-    if(!blink)
-    {
-      display.drawStatus(pump.getTextStatus());
-    }
-
-    blink=!blink;
-    display.print();
-
-    serialMillis=millis();
+        blink=!blink;
+        display.print();
+        blinkMillis=millis();
+        Serial.printf("Amps=%f Bars=%f, PumpStatus=%d, TankStatus=%d\n",amps,bars,pump.getStatus(),tank.getStatus()); 
+      }
+      
+    break;
+    case ServerStatus::RESTARTREQUIRED:
+      pump.stop(true);
+      display.clear();
+      display.drawProgressBarValue(100);
+      display.drawMsg(String("Rebooting...").c_str());
+      display.print();
+      Serial.printf("Restarting ESP\n\r");
+      delay(500);
+      ESP.restart();
+    break;
+    default:
+    break;
   }
 
 
