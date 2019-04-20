@@ -8,7 +8,7 @@
 #define DISPLAYADDRESS 0x3c
 #define SDAPIN D2
 #define SCLPIN D1
-
+#define FIRMWAREVERSION "1.0.0"
 
 enum WifiMode{
   ACCESSPOINT,
@@ -40,7 +40,6 @@ struct ApMode{
 };
 
   struct ConfigData{
-  //    char status[10]="NOTSET";
       float offAmps;
       float minAmps;
       float maxAmps;
