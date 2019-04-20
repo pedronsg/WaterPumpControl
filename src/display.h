@@ -5,17 +5,21 @@
 class Display{
 private:
   SSD1306Wire ssdDisplay;
-  void drawProgressBarDemo(const int progress);
+  bool _blink;
+  uint64_t _blinkMillis;
 public:
     Display();
+    void init();
     void clear();
     void printInitIp(const String ip);
     void drawBars(const float min, const float max, const float bars);
     void drawAmps(const float min, const float max, const float amps);
-    void drawStatus(const String status);
+    void drawProgressBarValue(const int progress);
     void printConnectingWifi();
     void print();
-    void printProgress();
+    void printProgressValue(const uint8_t value, const char* msg);
+    void printFirmwareVersion();
+    void drawMsg(const char* msg);
 };
 
 
