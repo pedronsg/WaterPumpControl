@@ -371,7 +371,7 @@ server.on("/getAdmin", HTTP_POST, [this](AsyncWebServerRequest *request){
       Serial.println ( "reboot from web" );
       _pump->stop(true);
       digitalWrite(2, LOW);
-      ESP.restart();
+      status=ServerStatus::RESTARTREQUIRED;
   });
 
   server.on("/reset", HTTP_POST, [this](AsyncWebServerRequest *request){
@@ -380,7 +380,7 @@ server.on("/getAdmin", HTTP_POST, [this](AsyncWebServerRequest *request){
       _pump->stop(true);
       digitalWrite(2, LOW);
       _eeprom->reset();
-      ESP.restart();
+      status=ServerStatus::RESTARTREQUIRED;
   });
 
   server.on("/logout", HTTP_GET, [](AsyncWebServerRequest *request){
