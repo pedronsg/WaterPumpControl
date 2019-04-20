@@ -3,6 +3,9 @@
 #include "FS.h"
 #include "ArduinoJson.h"
 
+WebServer::WebServer()
+{
+}
 
 
 void WebServer::init(ConfigData &config, Eeprom &eeprom, WifiPump &wifiPump, Pump &pump, Tank &tank)
@@ -14,64 +17,140 @@ void WebServer::init(ConfigData &config, Eeprom &eeprom, WifiPump &wifiPump, Pum
   _tank = &tank;
 }
 
+void WebServer::handle_firmwareUpdate(AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
+  uint32_t free_space = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
+
+ if(status==ServerStatus::RESTARTREQUIRED) return;
+
+  if (!index){
+    Update.runAsync(true);
+    if (!Update.begin(free_space)) {
+      Update.printError(Serial);
+    }
+    else
+    {
+      firmwareProgress=0;
+      status=ServerStatus::WRITINGFIRMWARE;
+      Serial.println("Start flashing...");
+    }
+    
+
+  }
+
+  if (Update.write(data, len) != len) {
+    Update.printError(Serial);
+  }
+  else
+  {
+    firmwareProgress = ((float)Update.progress()/(float)newFirmwareSize)*100;
+    status=ServerStatus::WRITINGFIRMWARE;
+  }
+  
+
+  if (final) {
+    if (!Update.end(true)){
+      Update.printError(Serial);
+    } else {
+      firmwareProgress=100;
+      status=ServerStatus::RESTARTREQUIRED;
+      Serial.println("Update complete");
+    }
+    
+  }
+}
+
+
+
 
 void WebServer::start()
 {
   server.on("/", HTTP_GET, [this](AsyncWebServerRequest *request){
     if(!request->authenticate(_config->http_username, _config->http_password))
         return request->requestAuthentication();
-     request->send(SPIFFS,  "/index.html","text/html");
+
+      AsyncWebServerResponse *response = request->beginResponse(SPIFFS, "/index.html.gz","text/html");
+      response->addHeader("Content-Encoding", "gzip");
+      request->send(response);
   });
+
+  
   server.on("/live", HTTP_GET, [this](AsyncWebServerRequest *request){
     if(!request->authenticate(_config->http_username, _config->http_password))
         return request->requestAuthentication();
-    request->send(SPIFFS,  "/index.html","text/html");
+
+      AsyncWebServerResponse *response = request->beginResponse(SPIFFS, "/index.html.gz","text/html");
+      response->addHeader("Content-Encoding", "gzip");
+      request->send(response);
   });
   server.on("/network", HTTP_GET, [this](AsyncWebServerRequest *request){
     if(!request->authenticate(_config->http_username, _config->http_password))
         return request->requestAuthentication();
-    request->send(SPIFFS,  "/network.html","text/html");
+    AsyncWebServerResponse *response = request->beginResponse(SPIFFS, "/network.html.gz","text/html");
+    response->addHeader("Content-Encoding", "gzip");
+    request->send(response);
   });
+
   server.on("/settings", HTTP_GET, [this](AsyncWebServerRequest *request){
     if(!request->authenticate(_config->http_username, _config->http_password))
         return request->requestAuthentication();
-    request->send(SPIFFS,  "/settings.html","text/html");
+    AsyncWebServerResponse *response = request->beginResponse(SPIFFS, "/settings.html.gz","text/html");
+    response->addHeader("Content-Encoding", "gzip");
+    request->send(response);
   });
+
   server.on("/admin", HTTP_GET, [this](AsyncWebServerRequest *request){
     if(!request->authenticate(_config->http_username, _config->http_password))
         return request->requestAuthentication();
-    request->send(SPIFFS,  "/admin.html","text/html");
+    AsyncWebServerResponse *response = request->beginResponse(SPIFFS, "/admin.html.gz","text/html");
+    response->addHeader("Content-Encoding", "gzip");
+    request->send(response);
   });
+
   server.on("/bootstrap.css", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(SPIFFS,  "/bootstrap.css","text/css");
+    AsyncWebServerResponse *response = request->beginResponse(SPIFFS, "/bootstrap.css.gz","text/css");
+    response->addHeader("Content-Encoding", "gzip");
+    request->send(response);  
   });
-  server.on("/jquery-2.1.0.js", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(SPIFFS,  "/jquery-2.1.0.js","application/javascript");
-  });
-  server.on("/utils.js", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(SPIFFS,  "/utils.js","application/javascript");
-  });
+
   server.on("/jumbotron-narrow.css", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(SPIFFS, "/jumbotron-narrow.css","text/css");
+    AsyncWebServerResponse *response = request->beginResponse(SPIFFS, "/jumbotron-narrow.css.gz","text/css");
+    response->addHeader("Content-Encoding", "gzip");
+    request->send(response);  
   });
+
   server.on("/favicon-32x32.png", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send(SPIFFS, "/favicon-32x32.png","image/png");
   });
+
   server.on("/favicon-16x16.png", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send(SPIFFS, "/favicon-16x16.png","image/png");
   });
-  server.on("/Chart.bundle.js", HTTP_GET, [](AsyncWebServerRequest *request){
-  request->send(SPIFFS,  "/Chart.bundle.js","application/javascript");
+
+  server.on("/apple-touch-icon.png", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(SPIFFS, "/apple-touch-icon.png","image/png");
   });
+
+  server.on("/Chart.bundle.js", HTTP_GET, [](AsyncWebServerRequest *request){
+      AsyncWebServerResponse *response = request->beginResponse(SPIFFS, "/Chart.bundle.js.gz","application/javascript");
+      response->addHeader("Content-Encoding", "gzip");
+      request->send(response);  
+  });
+
   server.on("/utils.js", HTTP_GET, [](AsyncWebServerRequest *request){
-  request->send(SPIFFS,  "/utils.js","application/javascript");
+    AsyncWebServerResponse *response = request->beginResponse(SPIFFS, "/utils.js.gz","application/javascript");
+    response->addHeader("Content-Encoding", "gzip");
+    request->send(response);  
+  });
+
+  server.on("/site.webmanifest", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(SPIFFS, "/site.webmanifest","application/manifest+json");
   });
 
   server.on("/getSettings", HTTP_POST, [this](AsyncWebServerRequest *request){
       if(!request->authenticate(_config->http_username, _config->http_password))
           return request->requestAuthentication();
     AsyncResponseStream *response = request->beginResponseStream("application/json");
-    DynamicJsonDocument root(128);
+    DynamicJsonDocument root(512);
 
     root["maxBars"] = _config->maxBars;
     root["minBars"] = _config->minBars;
@@ -86,12 +165,11 @@ void WebServer::start()
 
   });
 
-
   server.on("/setStatus", HTTP_POST, [this](AsyncWebServerRequest *request){
     if(!request->authenticate(_config->http_username, _config->http_password))
         return request->requestAuthentication();
   }, NULL, [this](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total){
-    DynamicJsonDocument root(32);
+    DynamicJsonDocument root(64);
     deserializeJson(root, (const char*)data);
     
     if (!root.isNull()) {
@@ -193,16 +271,16 @@ server.on("/getAdmin", HTTP_POST, [this](AsyncWebServerRequest *request){
     if(!request->authenticate(_config->http_username, _config->http_password))
         return request->requestAuthentication();
   AsyncResponseStream *response = request->beginResponseStream("application/json");
-  DynamicJsonDocument root(128);
+  DynamicJsonDocument root(256);
 
   root["httpUser"] = _config->http_password;
   root["httpPass"] = _config->http_username;
+  root["firmversion"] = FIRMWAREVERSION;
 
   serializeJson(root,*response);
   request->send(response);
 
 });
-
 
  server.on("/getPumpStatus", HTTP_POST, [this](AsyncWebServerRequest *request){
     if(!request->authenticate(_config->http_username, _config->http_password))
@@ -310,6 +388,49 @@ server.on("/getAdmin", HTTP_POST, [this](AsyncWebServerRequest *request){
   request->send(200, "text/plain", "Success.");
   });
 
+
+
+// handler for the /update form POST (once file upload finishes)
+  server.on("/upload", HTTP_POST, [](AsyncWebServerRequest *request){
+      request->send(200);
+    }, handle_firmwareUpdate);
+
+  server.onNotFound([](AsyncWebServerRequest *request){
+int params = request->params();
+    for(int i=0;i<params;i++){
+      AsyncWebParameter* p = request->getParam(i);
+      if(p->isFile()){
+        Serial.printf("_FILE[%s]: %s, size: %u\n", p->name().c_str(), p->value().c_str(), p->size());
+      } else if(p->isPost()){
+        Serial.printf("_POST[%s]: %s\n", p->name().c_str(), p->value().c_str());
+      } else {
+        Serial.printf("_GET[%s]: %s\n", p->name().c_str(), p->value().c_str());
+      }
+    }
+
+    request->send(404);
+  });
+
+server.on("/setFirmwareSize", HTTP_POST, [this](AsyncWebServerRequest *request){
+    if(!request->authenticate(_config->http_username, _config->http_password))
+        return request->requestAuthentication();
+  }, NULL, [this](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total){
+    DynamicJsonDocument root(64);
+    deserializeJson(root, (const char*)data);
+
+    if (!root.isNull() && root.containsKey("firmwareSize")) {
+         this->newFirmwareSize = root["firmwareSize"];
+         this->firmwareProgress = 0;
+         request->send(200, "text/plain", "Success.");
+    }
+    else
+    {
+      request->send(404, "text/plain", "Error");
+    }
+
+  });
+
   server.begin();
+
   Serial.println ( "HTTP server started" );
 }

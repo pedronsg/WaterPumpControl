@@ -10,6 +10,13 @@
 #include "pump.h"
 #include "tank.h"
 
+enum ServerStatus
+{
+  RUNNING,
+  RESTARTREQUIRED,
+  WRITINGFIRMWARE
+};
+
 class WebServer
 {
   private:
@@ -25,9 +32,14 @@ class WebServer
     Tank *_tank;
 
   public:
+    WebServer();
     void init(ConfigData &config, Eeprom &eeprom, WifiPump &wifiPump, Pump &pump, Tank &tank);
     void update();
     void start();
+    static ServerStatus status;
+    static void handle_firmwareUpdate(AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final);
+    static uint8_t firmwareProgress;
+    static uint32_t newFirmwareSize;
 };
 
 
