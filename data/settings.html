@@ -12,29 +12,8 @@
 	<link rel="mask-icon" href="/safari-pinned-tab.svg" color="#5bbad5">
 	<meta name="msapplication-TileColor" content="#da532c">
 	<meta name="theme-color" content="#ffffff">
-	
-    <style>
-	.btn-file {
-    position: relative;
-    overflow: hidden;
-}
-.btn-file input[type=file] {
-    position: absolute;
-    top: 0;
-    right: 0;
-    min-width: 100%;
-    min-height: 100%;
-    font-size: 100px;
-    text-align: right;
-    filter: alpha(opacity=0);
-    opacity: 0;
-    outline: none;
-    background: white;
-    cursor: inherit;
-    display: block;
-}
-    </style>
-<script>
+
+	<script>
 	document.addEventListener('DOMContentLoaded', function() {
 		getSettings();
 	}, false);
@@ -146,7 +125,7 @@
 				</div>
 				<div class="form-group">
 				  <label  for="maxRunTime">Max Running Time (Hours)</label>  
-				  <input id="maxRunTime" name="maxRunTime" step="1" min="30"  max="24" type="number" placeholder="1" class="form-control input-md" data-toggle="tooltip" title="Max time running the Pump, after this time the Pump will stop automatically to avoid floods" required oninvalid="this.setCustomValidity('Invalid time value!')" oninput="this.setCustomValidity('')">
+				  <input id="maxRunTime" name="maxRunTime" step="1" min="1"  max="24" type="number" placeholder="1" class="form-control input-md" data-toggle="tooltip" title="Max time running the Pump, after this time the Pump will stop automatically to avoid floods" required oninvalid="this.setCustomValidity('Invalid time value!')" oninput="this.setCustomValidity('')">
 				</div>
 				<div class="form-group">
 				  <label  for="noWater">No Water detection (Seconds)</label>  

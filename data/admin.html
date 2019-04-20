@@ -12,33 +12,30 @@
 	<link rel="mask-icon" href="/safari-pinned-tab.svg" color="#5bbad5">
 	<meta name="msapplication-TileColor" content="#da532c">
 	<meta name="theme-color" content="#ffffff">
-
-    <style>
-	.btn-file {
-    position: relative;
-    overflow: hidden;
-}
-.btn-file input[type=file] {
-    position: absolute;
-    top: 0;
-    right: 0;
-    min-width: 100%;
-    min-height: 100%;
-    font-size: 100px;
-    text-align: right;
-    filter: alpha(opacity=0);
-    opacity: 0;
-    outline: none;
-    background: white;
-    cursor: inherit;
-    display: block;
-}
-    </style>
-
     <script>
+
 	document.addEventListener('DOMContentLoaded', function() {
 		getAdmin();
 	}, false);
+	
+	function getAdmin() {
+		var xmlhttp = new XMLHttpRequest();
+
+		xmlhttp.onreadystatechange = function() {
+			if (xmlhttp.readyState == XMLHttpRequest.DONE) {   // XMLHttpRequest.DONE == 4
+			   if (xmlhttp.status == 200) {
+				   var settingsObj = JSON.parse(xmlhttp.responseText);
+				   document.getElementById("httpUser").value = settingsObj.httpUser;	
+				   document.getElementById("httpPass").value = settingsObj.httpPass;
+				   document.getElementById("httpPass2").value = settingsObj.httpPass;
+				   firmversion.innerText = "Current firmware: " + settingsObj.firmversion;
+			   }
+			}
+		};
+		xmlhttp.open("POST", "/getAdmin", true);
+		xmlhttp.send();
+	}
+
 	
 	function confirmReboot(){	
 		var r = confirm("Reboot System!\n Are you sure?");
@@ -51,23 +48,6 @@
 		if (r) {
 			setCommand("reset");
 		} 
-	}
-	
-	function getAdmin() {
-		var xmlhttp = new XMLHttpRequest();
-
-		xmlhttp.onreadystatechange = function() {
-			if (xmlhttp.readyState == XMLHttpRequest.DONE) {   // XMLHttpRequest.DONE == 4
-			   if (xmlhttp.status == 200) {
-				   var settingsObj = JSON.parse(xmlhttp.responseText);
-				   document.getElementById("httpUser").value = settingsObj.httpUser;	
-				   document.getElementById("httpPass").value = settingsObj.httpPass;
-				   document.getElementById("httpPass2").value = settingsObj.httpPass;
-			   }
-			}
-		};
-		xmlhttp.open("POST", "/getAdmin", true);
-		xmlhttp.send();
 	}
 
 	function setCommand(cmd)
@@ -120,7 +100,6 @@
 		}
 	}
 	
-	
 	function showAp() {
 		var checkBox = document.getElementById("apMode");
 		var obj = document.getElementById("apNameForm");
@@ -131,8 +110,103 @@
 		}
 	}
 	
+	function selectFile() {
+		var btfile = document.getElementById("fileupload");
+		btfile.value="";
+		btfile.click();
+	}
+	function fileChange() {
+		document.getElementById("progressbar").style = "width: 0%";
+		uploadStatus.innerText ="";
+		
+		document.getElementById("progressAndStatus").style="visibility: hidden";
+		document.getElementById("uploadStatus").style="visibility: hidden";
 	
-	</script>
+		var btfile = document.getElementById("fileupload");
+		var txbox = document.getElementById("txtFile");
+		var filename = btfile.value.replace(/^.*[\\\/]/, '')
+		txbox.value=filename;
+		if (filename)
+		{
+			document.getElementById("btsendFirmware").disabled=false;
+		}
+	}
+	
+	
+	function progressHandler(event) {
+	  document.getElementById("progressAndStatus").style="visibility: visible";
+	  document.getElementById("uploadStatus").style="visibility: visible";
+	  var percent = (event.loaded / event.total) * 100;
+	  document.getElementById("progressbar").style = "width: " + Math.round(percent).toString() + "%";
+	  uploadStatus.innerText = Math.round(percent) + "% uploaded... please wait";
+	}
+
+
+	function errorHandler(event) {
+	 uploadStatus.innerText = "Upload Failed";
+	 document.getElementById("txtFile").value="";
+	}
+
+	function abortHandler(event) {
+	  uploadStatus.innerText = "Upload Aborted";
+	  document.getElementById("txtFile").value="";
+	}
+	
+	function sendFirmware()
+	{
+		var firmwarefile = document.getElementById("uploadform");
+		var req = new XMLHttpRequest();
+		var formData = new FormData(firmwarefile);
+		
+		req.upload.addEventListener("progress", progressHandler, false);
+		req.addEventListener("error", errorHandler, false);
+		req.addEventListener("abort", abortHandler, false);                            
+		req.open("POST", "/upload", true);
+		
+		req.onreadystatechange = function()
+		{
+			if(req.readyState == 4 && req.status == 200)
+			{
+				document.getElementById("progressbar").style = "width: 100%";
+				uploadStatus.innerText = "100% uploaded... Success";
+				alert("New firmware uploaded with success.");
+			}
+		}	
+		req.send(formData);
+	}
+	
+
+	
+	
+	function sendFirmwareButton() {
+		var r = confirm("Upload new firmware?");
+		if (r) {
+			var firmwareSize = document.getElementById("fileupload").files[0].size;
+			
+			var obj = new Object();
+			obj.firmwareSize = firmwareSize
+			var jsonString= JSON.stringify(obj);
+			var xmlHttp = new XMLHttpRequest();
+			xmlHttp.open("POST", "/setFirmwareSize",true); 
+			xmlHttp.onreadystatechange = function()
+			{
+				if(xmlHttp.readyState == 4 && xmlHttp.status == 200)
+				{
+					sendFirmware();
+					document.getElementById("txtFile").value="";
+					document.getElementById("btsendFirmware").disabled=true;
+				}
+			}		
+			xmlHttp.send(jsonString); 			
+		}
+		else
+		{
+			document.getElementById("txtFile").value="";
+			document.getElementById("btsendFirmware").disabled=true;
+			document.getElementById("fileupload").value="";
+		}
+	}
+  </script>
   </head>
 
   <body>
@@ -173,21 +247,38 @@
 				  <input id="httpPass2" name="httpPass2" type="password" class="form-control input-md" data-toggle="tooltip" title="Repeat password"  required oninput="this.setCustomValidity('')">
 				</div>
 
-				<!-- <legend>Https</legend>			
-				<div class="form-group">
-				<input name="clientMode" id="clientMode" type="checkbox"> Use Https (needs reboot)
-				</div> -->
-
+				<legend>Firmware</legend>
+				<h5 class="text-muted" id="firmversion"></h5>
+				<label  for="frmfirm" >New firmware</label> 
+				<div class="form-group" id="frmfirm">
+					<div class="input-group input-file" >
+						<span class="input-group-btn">
+							<button class="btn btn-default" type="button" onclick="selectFile()">Choose file</button>
+						</span> 
+						<input type="text" id="txtFile" readonly class="form-control" placeholder='.bin file' />
+						<span class="input-group-btn">
+							<button id="btsendFirmware" class="btn btn-default" type="button" disabled onclick="sendFirmwareButton()">Upload</button>
+						</span>
+					</div>
+				</div>
+				<div class="progress" style="visibility: hidden" id="progressAndStatus">
+					<div class="progress-bar" id="progressbar" role="progressbar" style="width: 0%" ></div>
+				</div>
+				<h5 class="text-muted" id="uploadStatus" style="visibility: hidden"></h5>
+				
+				<br></br>
 				<div class="form-group">
 					<p class="text-right">
-						<!-- <input id="btSettings" name="singlebutton" class="btn btn-primary" type="button" onclick="setSettings()" value="Save" /> -->
 						<input id="btReset" name="btReset" class="btn btn-primary" type="button" onclick="confirmReset()" value="Reset" />
 						<input id="btReboot" name="btReboot" class="btn btn-primary" type="button" onclick="confirmReboot()" value="Reboot" />
 						<input id="btApply" name="singlebutton" class="btn btn-primary" type="button" onclick="setAdmin()" value="Apply" />
 					</p>
 				</div>
 			</form>
-
+			<form id="uploadform" enctype="multipart/form-data" method="post" action="/upload">
+			   <input id="fileupload" name="binfile" type="file" onchange="fileChange()" style="display:none">
+			   <input type="submit" value="submit" id="submitFirmware" style="display:none"/>
+			</form>
 		</div>
       <footer class="footer">
         <p>&copy; PumpControl @2019 by <a href="mailto:pedronsg@gmail.com">pedronsg@gmail.com</a></p>
