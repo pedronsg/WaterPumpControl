@@ -22,5 +22,4 @@ public:
     void drawMsg(const char* msg);
 };
 
-
 #endif
