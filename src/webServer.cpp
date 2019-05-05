@@ -2,9 +2,11 @@
 #include <sstream>
 #include "FS.h"
 #include "ArduinoJson.h"
+#include <WebAuthentication.h>
 
 WebServer::WebServer()
 {
+  session_key=millis();
 }
 
 
@@ -59,51 +61,126 @@ void WebServer::handle_firmwareUpdate(AsyncWebServerRequest *request, String fil
   }
 }
 
+void WebServer::redirectToAuthentication(AsyncWebServerRequest &request)
+{
+  session_key=millis();
+  AsyncWebServerResponse *response = request.beginResponse(SPIFFS, "/login.html.gz","text/html");
+  response->addHeader("Content-Encoding", "gzip");
+  response->addHeader("Cache-Control"," no-cache");
+  request.send(response);
+}
 
+String WebServer::uint64ToString(uint64_t input) {
+  String result = "";
+  uint8_t base = 10;
+
+  do {
+    char c = input % base;
+    input /= base;
+
+    if (c < 10)
+      c +='0';
+    else
+      c += 'A' - 10;
+    result = c + result;
+  } while (input);
+  return result;
+}
+
+bool WebServer::authenticated(AsyncWebServerRequest *request) {
+  if (request->hasHeader("Cookie")){
+    String cookie = request->header("Cookie");
+    String name = "PUMPCONTROL=" + uint64ToString(session_key);
+    if (cookie.indexOf(name) != -1) {
+      return (true);
+    }
+  }
+
+  AsyncWebServerResponse *response = request->beginResponse(301); 
+  response->addHeader("Location","/login");
+  response->addHeader("Cache-Control"," no-cache");
+  response->addHeader("Content-Encoding", "gzip");
+  request->send(response);
+  return (false);
+}
 
 
 void WebServer::start()
 {
   server.on("/", HTTP_GET, [this](AsyncWebServerRequest *request){
-    if(!request->authenticate(_config->http_username, _config->http_password))
-        return request->requestAuthentication();
-
+  if(!authenticated(request)) redirectToAuthentication(*request);
+    else
+    {
       AsyncWebServerResponse *response = request->beginResponse(SPIFFS, "/index.html.gz","text/html");
       response->addHeader("Content-Encoding", "gzip");
       request->send(response);
+    }
   });
+
+
+  server.on("/login", HTTP_POST, [this](AsyncWebServerRequest *request){
+  }, NULL, [this](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total){
+    
+    DynamicJsonDocument root(512);
+    deserializeJson(root, (const char*)data);
+
+    if (!root.isNull() && root.containsKey("clientId") && root.containsKey("clientSecret")
+    && root["clientId"]==_config->http_username && root["clientSecret"]==_config->http_password)
+    {
+      AsyncWebServerResponse *response = request->beginResponse(200); 
+      session_key = millis();
+      response->addHeader("Cache-Control"," no-cache");
+      response->addHeader("Set-Cookie", "PUMPCONTROL="+ uint64ToString(session_key));
+      request->send(response);
+    }
+    else
+    {
+      request->send(401, "text/plain", "Authentication Error!");
+      Serial.println("auth error");
+    }
+  });
+
+
 
   
   server.on("/live", HTTP_GET, [this](AsyncWebServerRequest *request){
-    if(!request->authenticate(_config->http_username, _config->http_password))
-        return request->requestAuthentication();
-
+    if(!authenticated(request)) redirectToAuthentication(*request);
+    else
+    {
       AsyncWebServerResponse *response = request->beginResponse(SPIFFS, "/index.html.gz","text/html");
       response->addHeader("Content-Encoding", "gzip");
       request->send(response);
+    }
   });
+
   server.on("/network", HTTP_GET, [this](AsyncWebServerRequest *request){
-    if(!request->authenticate(_config->http_username, _config->http_password))
-        return request->requestAuthentication();
-    AsyncWebServerResponse *response = request->beginResponse(SPIFFS, "/network.html.gz","text/html");
-    response->addHeader("Content-Encoding", "gzip");
-    request->send(response);
+    if(!authenticated(request)) redirectToAuthentication(*request);
+    else
+    {
+      AsyncWebServerResponse *response = request->beginResponse(SPIFFS, "/network.html.gz","text/html");
+      response->addHeader("Content-Encoding", "gzip");
+      request->send(response);
+    }
   });
 
   server.on("/settings", HTTP_GET, [this](AsyncWebServerRequest *request){
-    if(!request->authenticate(_config->http_username, _config->http_password))
-        return request->requestAuthentication();
-    AsyncWebServerResponse *response = request->beginResponse(SPIFFS, "/settings.html.gz","text/html");
-    response->addHeader("Content-Encoding", "gzip");
-    request->send(response);
+    if(!authenticated(request)) redirectToAuthentication(*request);
+    else
+    {
+      AsyncWebServerResponse *response = request->beginResponse(SPIFFS, "/settings.html.gz","text/html");
+      response->addHeader("Content-Encoding", "gzip");
+      request->send(response);  
+    }
   });
 
   server.on("/admin", HTTP_GET, [this](AsyncWebServerRequest *request){
-    if(!request->authenticate(_config->http_username, _config->http_password))
-        return request->requestAuthentication();
+   if(!authenticated(request)) redirectToAuthentication(*request);
+   else
+   {
     AsyncWebServerResponse *response = request->beginResponse(SPIFFS, "/admin.html.gz","text/html");
     response->addHeader("Content-Encoding", "gzip");
     request->send(response);
+   }
   });
 
   server.on("/bootstrap.css", HTTP_GET, [](AsyncWebServerRequest *request){
@@ -146,28 +223,37 @@ void WebServer::start()
     request->send(SPIFFS, "/site.webmanifest","application/manifest+json");
   });
 
+  server.on("/digestAuthRequest.js", HTTP_GET, [](AsyncWebServerRequest *request){
+    AsyncWebServerResponse *response = request->beginResponse(SPIFFS, "/digestAuthRequest.js.gz","application/javascript");
+    response->addHeader("Content-Encoding", "gzip");
+    request->send(response);  
+  });
+
+
   server.on("/getSettings", HTTP_POST, [this](AsyncWebServerRequest *request){
-      if(!request->authenticate(_config->http_username, _config->http_password))
-          return request->requestAuthentication();
-    AsyncResponseStream *response = request->beginResponseStream("application/json");
-    DynamicJsonDocument root(512);
+    if(!authenticated(request)) redirectToAuthentication(*request);
+    else
+    {
+      AsyncResponseStream *response = request->beginResponseStream("application/json");
+      DynamicJsonDocument root(512);
 
-    root["maxBars"] = _config->maxBars;
-    root["minBars"] = _config->minBars;
-    root["maxAmps"] = _config->maxAmps;
-    root["minAmps"] = _config->minAmps;
-    root["maxRunTime"] = _config->maxRunningtime;
-    root["noWater"] = _config->noWaterTime;
-    root["unprotectedDelay"] = _config->unprotectedStartDelay;
+      root["maxBars"] = _config->maxBars;
+      root["minBars"] = _config->minBars;
+      root["maxAmps"] = _config->maxAmps;
+      root["minAmps"] = _config->minAmps;
+      root["maxRunTime"] = _config->maxRunningtime;
+      root["noWater"] = _config->noWaterTime;
+      root["unprotectedDelay"] = _config->unprotectedStartDelay;
 
-    serializeJson(root,*response);
-    request->send(response);
-
+      serializeJson(root,*response);
+      request->send(response);
+    }
   });
 
   server.on("/setStatus", HTTP_POST, [this](AsyncWebServerRequest *request){
-    if(!request->authenticate(_config->http_username, _config->http_password))
-        return request->requestAuthentication();
+    if(!authenticated(request)) return redirectToAuthentication(*request);
+  //  if(!request->authenticate(_config->http_username, _config->http_password,"pump",false))
+  //      return redirectToAuthentication(*request);
   }, NULL, [this](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total){
     DynamicJsonDocument root(64);
     deserializeJson(root, (const char*)data);
@@ -199,8 +285,9 @@ void WebServer::start()
   });
 
   server.on("/setSettings", HTTP_POST, [this](AsyncWebServerRequest *request){
-    if(!request->authenticate(_config->http_username, _config->http_password))
-        return request->requestAuthentication();
+    if(!authenticated(request)) return redirectToAuthentication(*request);
+  //  if(!request->authenticate(_config->http_username, _config->http_password,"pump",false))
+   //     return redirectToAuthentication(*request);
   }, NULL, [this](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total){
     DynamicJsonDocument root(512);
     deserializeJson(root, (const char*)data);
@@ -244,64 +331,69 @@ void WebServer::start()
 
 
   server.on("/getNetwork", HTTP_POST, [this](AsyncWebServerRequest *request){
-    if(!request->authenticate(_config->http_username, _config->http_password))
-        return request->requestAuthentication();
-  AsyncResponseStream *response = request->beginResponseStream("application/json");
-  DynamicJsonDocument root(512);
+    if(!authenticated(request)) redirectToAuthentication(*request);
+    else
+    {
+      AsyncResponseStream *response = request->beginResponseStream("application/json");
+      DynamicJsonDocument root(512);
 
-  root["wifiMode"] =(int)_config->wifiMode;
-  root["apModeSSID"] = _config->wifiAp.network.ssid;
-  root["apModePass"] = _config->wifiAp.network.key;
+      root["wifiMode"] =(int)_config->wifiMode;
+      root["apModeSSID"] = _config->wifiAp.network.ssid;
+      root["apModePass"] = _config->wifiAp.network.key;
 
-  root["clientModeSSID"] = _config->wifiClient.network.ssid;
-  root["clientModePass"] = _config->wifiClient.network.key;
-  root["clientDhcpMode"] =  _config->wifiClient.dhcpClient;
-  root["clientModeIp"] = _config->wifiClient.network.ip;
-  root["clientModeMask"] = _config->wifiClient.network.mask;
-  root["clientModeGateway"] =_config->wifiClient.network.gateway;
-	root["clientModeDns1"] = _config->wifiClient.network.dns;
+      root["clientModeSSID"] = _config->wifiClient.network.ssid;
+      root["clientModePass"] = _config->wifiClient.network.key;
+      root["clientDhcpMode"] =  _config->wifiClient.dhcpClient;
+      root["clientModeIp"] = _config->wifiClient.network.ip;
+      root["clientModeMask"] = _config->wifiClient.network.mask;
+      root["clientModeGateway"] =_config->wifiClient.network.gateway;
+      root["clientModeDns1"] = _config->wifiClient.network.dns;
 
-  serializeJson(root,*response);
-  request->send(response);
-
+      serializeJson(root,*response);
+      request->send(response);
+    }
 });
 
 
 server.on("/getAdmin", HTTP_POST, [this](AsyncWebServerRequest *request){
-    if(!request->authenticate(_config->http_username, _config->http_password))
-        return request->requestAuthentication();
-  AsyncResponseStream *response = request->beginResponseStream("application/json");
-  DynamicJsonDocument root(256);
+  if(!authenticated(request)) redirectToAuthentication(*request);
+  else
+  {
+    AsyncResponseStream *response = request->beginResponseStream("application/json");
+    DynamicJsonDocument root(256);
 
-  root["httpUser"] = _config->http_password;
-  root["httpPass"] = _config->http_username;
-  root["firmversion"] = FIRMWAREVERSION;
+    root["httpUser"] = _config->http_password;
+    root["httpPass"] = _config->http_username;
+    root["firmversion"] = FIRMWAREVERSION;
 
-  serializeJson(root,*response);
-  request->send(response);
-
+    serializeJson(root,*response);
+    request->send(response);
+  }
 });
 
  server.on("/getPumpStatus", HTTP_POST, [this](AsyncWebServerRequest *request){
-    if(!request->authenticate(_config->http_username, _config->http_password))
-        return request->requestAuthentication();
-    AsyncResponseStream *response = request->beginResponseStream("application/json");
-    DynamicJsonDocument root(512);
+   if(!authenticated(request)) redirectToAuthentication(*request);
+   else
+   {
+      AsyncResponseStream *response = request->beginResponseStream("application/json");
+      DynamicJsonDocument root(512);
 
-    root["amps"] = _pump->getAmps();
-    root["bars"] = _tank->getBars();
-    root["maxBars"] = _config->maxBars;
-    root["minBars"] = _config->minBars;
-    root["pumpStatusValue"] = (int)_pump->getStatus();   
+      root["amps"] = _pump->getAmps();
+      root["bars"] = _tank->getBars();
+      root["maxBars"] = _config->maxBars;
+      root["minBars"] = _config->minBars;
+      root["pumpStatusValue"] = (int)_pump->getStatus();   
 
-    serializeJson(root,*response);
-    request->send(response); 
+      serializeJson(root,*response);
+      request->send(response); 
+   }
   });
 
 
   server.on("/setNetwork", HTTP_POST, [this](AsyncWebServerRequest *request){
-    if(!request->authenticate(_config->http_username, _config->http_password))
-        return request->requestAuthentication();
+    if(!authenticated(request)) return redirectToAuthentication(*request);
+   // if(!request->authenticate(_config->http_username, _config->http_password,"pump",false))
+   //     return redirectToAuthentication(*request);
   }, NULL, [this](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total){
     DynamicJsonDocument root(512);
     deserializeJson(root, (const char*)data);
@@ -367,15 +459,22 @@ server.on("/getAdmin", HTTP_POST, [this](AsyncWebServerRequest *request){
 
 
   server.on("/reboot", HTTP_POST, [this](AsyncWebServerRequest *request){
-  request->send(200, "text/plain", "Success.");
+    if(!authenticated(request)) redirectToAuthentication(*request);
+    else
+    {
+      request->send(200, "text/plain", "Success.");
       Serial.println ( "reboot from web" );
       _pump->stop(true);
       digitalWrite(2, LOW);
       status=ServerStatus::RESTARTREQUIRED;
+    }
   });
 
   server.on("/reset", HTTP_POST, [this](AsyncWebServerRequest *request){
-  request->send(200, "text/plain", "Success.");
+    if(!authenticated(request)) return redirectToAuthentication(*request);
+   // if(!request->authenticate(_config->http_username, _config->http_password,"pump",false))
+    //      return redirectToAuthentication(*request);
+      request->send(200, "text/plain", "Success.");
       Serial.println ( "reset from web" );
       _pump->stop(true);
       digitalWrite(2, LOW);
@@ -383,37 +482,33 @@ server.on("/getAdmin", HTTP_POST, [this](AsyncWebServerRequest *request){
       status=ServerStatus::RESTARTREQUIRED;
   });
 
-  server.on("/logout", HTTP_GET, [](AsyncWebServerRequest *request){
-  request->requestAuthentication();
-  request->send(200, "text/plain", "Success.");
+  server.on("/logout", HTTP_GET, [this](AsyncWebServerRequest *request){
+    
+    redirectToAuthentication(*request);
+  //request->requestAuthentication();
+  //request->send(200, "text/plain", "Success.");
+  //request->send(401);
   });
 
-
+server.on("/login", HTTP_GET, [this](AsyncWebServerRequest *request){
+  return redirectToAuthentication(*request);
+  });
 
 // handler for the /update form POST (once file upload finishes)
-  server.on("/upload", HTTP_POST, [](AsyncWebServerRequest *request){
+  server.on("/upload", HTTP_POST, [this](AsyncWebServerRequest *request){
+    if(!authenticated(request)) return redirectToAuthentication(*request);
       request->send(200);
     }, handle_firmwareUpdate);
 
-  server.onNotFound([](AsyncWebServerRequest *request){
-int params = request->params();
-    for(int i=0;i<params;i++){
-      AsyncWebParameter* p = request->getParam(i);
-      if(p->isFile()){
-        Serial.printf("_FILE[%s]: %s, size: %u\n", p->name().c_str(), p->value().c_str(), p->size());
-      } else if(p->isPost()){
-        Serial.printf("_POST[%s]: %s\n", p->name().c_str(), p->value().c_str());
-      } else {
-        Serial.printf("_GET[%s]: %s\n", p->name().c_str(), p->value().c_str());
-      }
-    }
 
-    request->send(404);
-  });
+server.onNotFound([](AsyncWebServerRequest *request) {
+	request->send(404);
+});
 
 server.on("/setFirmwareSize", HTTP_POST, [this](AsyncWebServerRequest *request){
-    if(!request->authenticate(_config->http_username, _config->http_password))
-        return request->requestAuthentication();
+  if(!authenticated(request)) return redirectToAuthentication(*request);
+ //   if(!request->authenticate(_config->http_username, _config->http_password))
+  //      return redirectToAuthentication(*request);//request->requestAuthentication();
   }, NULL, [this](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total){
     DynamicJsonDocument root(64);
     deserializeJson(root, (const char*)data);
@@ -429,6 +524,7 @@ server.on("/setFirmwareSize", HTTP_POST, [this](AsyncWebServerRequest *request){
     }
 
   });
+
 
   server.begin();
 

@@ -30,6 +30,10 @@ class WebServer
     WifiPump *_wifi;
     Pump *_pump;
     Tank *_tank;
+    uint64_t session_key;
+    bool authenticated(AsyncWebServerRequest *request);
+    void redirectToAuthentication(AsyncWebServerRequest &request);
+    String uint64ToString(uint64_t input);
 
   public:
     WebServer();
