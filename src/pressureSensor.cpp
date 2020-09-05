@@ -5,6 +5,7 @@
 #define EXPO_VAL                0.667
 #define SENSOR_VOLTAGE          5
 #define MPA_TO_BAR              10
+#define ATMOSFEREPRESSURE       0.5
 
 Adafruit_ADS1115 ads1115(0x48);
 
@@ -20,6 +21,6 @@ float PressureSensor::GetVoltage()
 
 float PressureSensor::GetBars(float &calibratedValue)
 {
-    return ((GetVoltage()-calibratedValue)/(SENSOR_VOLTAGE*EXPO_VAL))*MPA_TO_BAR;
+    return (((GetVoltage()-calibratedValue)/(SENSOR_VOLTAGE*EXPO_VAL))*MPA_TO_BAR)+ATMOSFEREPRESSURE;
 }
     

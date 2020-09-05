@@ -21,7 +21,7 @@ float Tank::getBars()
 
 void Tank::update()
 {
-  bar = PressureSensor::GetBars(conf->pressure_calibration)+0.5;
+  bar = PressureSensor::GetBars(conf->pressure_calibration);
 
   status=TankStatus::NORMAL;
   checkEmpty();
