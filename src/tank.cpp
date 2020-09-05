@@ -1,64 +1,72 @@
 #include <Arduino.h>
 #include "tank.h"
+#include "pressureSensor.h"
+#include "config.h"
 
-
+ConfigData *conf;
 
 Tank::Tank(){
   debounceEmptyMillis=0;
   debounceFullMillis=0;
   debouncedEmpty=true;
   debouncedFull=true;
-  status=FULL;
-}
-
-void Tank::set(float _bar, ConfigData _conf)
-{
-  bar=_bar;
-  conf=_conf;
+  status=TankStatus::FULL;
+  conf= CConfig::GetInstance();
 }
 
 float Tank::getBars()
 {
-  return bar;
+  return (bar<0)?0.50:bar;
+}
+
+void Tank::update()
+{
+  bar = PressureSensor::GetBars(conf->pressure_calibration)+0.5;
+
+  status=TankStatus::NORMAL;
+  checkEmpty();
+
+  if(status!=TankStatus::EMPTY)
+    checkFull();
 }
 
 TankStatus Tank::getStatus()
 {
-  status=NORMAL;
-  checkEmpty();
-  checkFull();
-
   return status;
 }
 
 
 void Tank::checkEmpty()
 {
-  if(bar<=conf.minBars && debouncedEmpty)
+  if(bar<=conf->minBars && debouncedEmpty)
   {
     debouncedEmpty=false;
     debounceEmptyMillis = millis();
   }
 
-  if(!debouncedEmpty && bar<=conf.minBars && millis()-debounceEmptyMillis>DEBOUNCE)
+  if(!debouncedEmpty && bar<=conf->minBars && millis()-debounceEmptyMillis>DEBOUNCE)
   {
-    status=EMPTY;
+    status=TankStatus::EMPTY;
     debouncedFull=true;
   }
 }
 
 void Tank::checkFull()
 {
-  if(bar>=conf.maxBars && debouncedFull)
+  if(bar>=conf->maxBars && debouncedFull)
   {
     debouncedFull=false;
     debounceFullMillis = millis();
   }
 
-  if(!debouncedFull && bar>=conf.maxBars && millis()-debounceFullMillis>DEBOUNCE)
+  if(!debouncedFull && bar>=conf->maxBars && millis()-debounceFullMillis>DEBOUNCE)
   {
-    status=FULL;
+    status=TankStatus::FULL;
     debouncedEmpty=true;
-
   }
+}
+
+String Tank::getTextStatus()
+{
+  return TankStatusText[status];
 }

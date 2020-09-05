@@ -1,161 +1,184 @@
+//#define DEBUG_ENABLED
+
 #include "webServer.h"
-#include "wifi.h"
-#include <Adafruit_ADS1015.h>
-#include "eeprom.h"
-#include "tank.h"
-#include "pump.h"
 #include "display.h"
 #include "spiffs.h"
+//#include "littlefs.h"
+#include <Bounce2.h>
+#include "config.h"
+#include "mqtt_ESP.h"
 
+Bounce resetButton = Bounce(); 
 
-Adafruit_ADS1115 ads;
-float amps=0;
-float bars=0;
-
-ConfigData config;
-WifiPump wifi;
+MQTT_ESP mqtt;
+CWIFI wifi(mqtt);
 Tank tank;
 Pump pump;
 Eeprom eeprom;
-
 WebServer webServer;
+
+ConfigData *config;
+
 ServerStatus WebServer::status = ServerStatus::RUNNING;
 uint8_t WebServer::firmwareProgress = 0;
 uint32_t WebServer::newFirmwareSize = 0;
 Display display;
-Spiffs spiffs;
+//LITTLE_FS littlefs;
+Spiffs littlefs;
+uint64_t analogReadMillis=0;
+uint64_t mqttMillis=0;
 
-uint64_t blinkMillis=0;
-bool blink=false;
+
 
 void setup() {
+  pinMode(PUMP_PIN, OUTPUT);
+  pinMode(RESET_BUTTON, INPUT_PULLUP);
+  pinMode(ANALOGPIN, INPUT);
 
-  //serial communication
-  Serial.begin ( 74880 );
-  
+  resetButton.attach(RESET_BUTTON);
+  resetButton.interval(LONG_PRESS_TIME); // interval in ms
+  //PUMP off
+  digitalWrite(PUMP_PIN, HIGH);
+
+  #ifdef DEBUG_ENABLED 
+    Serial1.begin(115200);
+  #endif
+
   display.init();
   display.printFirmwareVersion();
-  display.printProgressValue(10,String("loading...").c_str());
+  display.printProgressValue(10,"loading...");
+ 
   //SPIFFS files initialization
-  spiffs.begin();
-  display.printProgressValue(20,String("loading...").c_str());
-  //PUMP pin
-  pinMode(PUMP_PIN, OUTPUT);
-  digitalWrite(PUMP_PIN, LOW);
-
-  //STOP Switch
-  pinMode(STOP_SWITCH, INPUT);
-  display.printProgressValue(30,String("loading...").c_str());
+  littlefs.begin();
+  display.printProgressValue(30,"loading...");
+  delay ( 500 );
   // read eeprom data
   eeprom.begin();
-
-  display.printProgressValue(50,String("loading...").c_str());
+  display.printProgressValue(50,"loading...");
   //eeprom.reset();
-
-  /*delay(7000);
-  rst_info *rinfo= ESP.getResetInfoPtr();
-  Serial.println("Reset reason=");
-  Serial.print(rinfo->reason);
-  Serial.println("");
-  if(rinfo->reason == REASON_EXT_SYS_RST)
-  {
-    eeprom.reset();
- //   Serial.println("Reset...");
-  }
-*/
-
-  config = eeprom.read();
-
+  eeprom.read();
+  config = CConfig::GetInstance();
+  display.printProgressValue(70,"loading...");
   delay ( 500 );
-  display.printProgressValue(70,String("loading...").c_str());
-  //ads initialization
-  ads.setGain(GAIN_ONE); // 1x gain   +/- 4.096V  1 bit = 2mV      0.125mV
-  ads.begin();
-
-  delay ( 500 );
-  wifi.init(config);
+  
   wifi.start();
-  display.printProgressValue(80,String("loading...").c_str());
-  webServer.init(config, eeprom, wifi, pump, tank);
+  display.printProgressValue(80,"loading...");
+  webServer.init(eeprom, wifi, pump, tank);
   webServer.start();
-  display.printProgressValue(100,String("loading...").c_str());
+  display.printProgressValue(100,"loading...");
   delay ( 500 );
-  display.printInitIp(wifi.getIpAddress());
-  //display.clear();
+  display.printInitIp(wifi.getIpAddress().c_str());
+
+  #ifdef DEBUG_ENABLED 
+  Serial1.println(config->wifiAp.network.ssid);
+  #endif
+
+  if(config->useMQTT)
+    mqtt.init(pump, tank);
+}
+
+int lastState=-1;
+
+
+void runMqtt()
+{
+  if(!config->useMQTT)
+    return;
+
+  if(lastState != pump.getStatus())
+  {
+    if(!mqtt.isInitialized())
+      mqtt.init(pump, tank);
+    mqtt.publishAll();        
+  }
+  lastState=pump.getStatus();
 }
 
 
+void readSensors()
+{
+  tank.update();
+  pump.update();
 
+  runMqtt();
 
-
-void loop() {
-
-  int16_t adc0, adc1;
-
-  adc0 = ads.readADC_SingleEnded(0);
-  adc1 = ads.readADC_SingleEnded(1);
-
-  adc0=(adc0<0)?0:adc0;
-  adc1=(adc1<0)?0:adc1;
-
-  amps=(float)adc0*0.125/1000.000;
-  bars=(float)adc1*0.125/1000.000;
-
-  pump.set(amps,config);
-  tank.set(bars,config);
+  if(tank.getStatus()==TankStatus::FULL)
+  {
+    pump.stop(false);
+  }
 
   if(pump.getStatus() != PumpStatus::NOWATER && 
-  pump.getStatus() != PumpStatus::FLOODPROTECTION && 
-  pump.getStatus() != PumpStatus::OVERLOAD &&
-  webServer.status == ServerStatus::RUNNING)
+    pump.getStatus() != PumpStatus::FLOODPROTECTION && 
+    pump.getStatus() != PumpStatus::OVERLOAD &&
+    webServer.status == ServerStatus::RUNNING &&
+    tank.getStatus()==TankStatus::EMPTY)
   {
-    if(tank.getStatus()==TankStatus::EMPTY)
-    {
-      pump.start();
-    }else if(tank.getStatus()==TankStatus::FULL)
-    {
-      pump.stop(false);
-    }
+    pump.start();
   }
+  
+
+
 
   switch (webServer.status)
   {
     case ServerStatus::WRITINGFIRMWARE:
       pump.stop(true);
-      display.clear();
-      display.drawProgressBarValue(webServer.firmwareProgress);
-      display.drawMsg(String("flashing...").c_str());
-      Serial.printf("Flashing %d%%\n",webServer.firmwareProgress);
-      display.print();
+      display.printFlashing(webServer.firmwareProgress);
+      #ifdef DEBUG_ENABLED 
+        Serial1.printf("Flashing %d%%\n",webServer.firmwareProgress);
+      #endif   
     break;
     case ServerStatus::RUNNING:
-      if(millis()-blinkMillis>1000)
-      {
-        display.clear();
-        display.drawBars(config.minBars, config.maxBars, bars);
-        display.drawAmps(config.minAmps, config.maxAmps, amps);
-        if (blink) display.drawMsg(pump.getTextStatus().c_str());
-
-        blink=!blink;
-        display.print();
-        blinkMillis=millis();
-        Serial.printf("Amps=%f Bars=%f, PumpStatus=%d, TankStatus=%d\n",amps,bars,pump.getStatus(),tank.getStatus()); 
-      }
-      
+        display.printRunning(pump, tank);
+        #ifdef DEBUG_ENABLED 
+       //   Serial1.printf("Amps=%f Bars=%f, PumpStatus=%d, TankStatus=%d\n",pump.getAmps(),
+      //    tank.getBars(),pump.getStatus(),tank.getStatus()); 
+        #endif
     break;
     case ServerStatus::RESTARTREQUIRED:
       pump.stop(true);
-      display.clear();
-      display.drawProgressBarValue(100);
-      display.drawMsg(String("Rebooting...").c_str());
-      display.print();
-      Serial.printf("Restarting ESP\n\r");
+      display.printRebooting();
+      #ifdef DEBUG_ENABLED 
+        Serial1.printf("Restarting ESP\n\r");
+      #endif
       delay(500);
       ESP.restart();
     break;
     default:
     break;
   }
+}
 
 
+void loop() {
+
+  resetButton.update();
+
+  //reset button
+  if (resetButton.fell()) 
+  {
+    pump.stop(false);
+    display.printReset();
+    eeprom.reset();
+    delay(1000);
+    ESP.restart();
+  }
+
+   //read sensors each ms interval
+ // if(millis()-analogReadMillis>READSENSORSINTERVAL)
+ // {
+    readSensors();
+  //  analogReadMillis=millis();
+ // }
+
+  //mqtt update interval
+  if(config->useMQTT && millis()-mqttMillis>MQTTUPDATEINTERVAL)
+  {
+   // Serial1.printf("Checking mqtt...\n\r");
+    if(!mqtt.isInitialized())
+      mqtt.init(pump, tank);
+
+    mqtt.publishAll();  
+    mqttMillis=millis();
+  }
 }

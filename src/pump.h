@@ -1,18 +1,16 @@
 #ifndef PUMP_H
 #define PUMP_H
 
-#include "config.h"
-
 enum PumpStatus
 {
-  OFF,
+  OFF=0,
   ON,
   NOWATER,
   OVERLOAD,
-  FLOODPROTECTION
+  FLOODPROTECTION,
+  UNKNOWN
 };
-
-
+#define PumpStatusText ((char const*[]){ "OFF", "ON", "NO WATER", "OVERLOAD", "PROTECTION", "UNKNOWN" })
 
 class Pump{
 private:
@@ -27,22 +25,23 @@ private:
   bool timersOverloadSet;
   bool timersNoWaterSet;
   float amps;
-  ConfigData configs;
 
   bool unprotectedStartTime();
   void checkFlood();
   void checkNoWater();
   void checkOverload();
+  void off();
+  void on();
 public:
   bool webStop;
   void start();
   void stop(const bool &isWebCommand);
-  void set(float amp, ConfigData conf);
   PumpStatus getStatus();
   String  getTextStatus();
   float getAmps();
   void init();
   Pump();
+  void update();
 };
 
 #endif

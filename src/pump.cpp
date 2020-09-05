@@ -1,10 +1,14 @@
 #include <Arduino.h>
 #include "pump.h"
+#include "currentSensor.h"
+#include "config.h"
 
 #define NANOHOUR 3600000ul
 
+ConfigData *configs;
 
 Pump::Pump(){
+  configs= CConfig::GetInstance();
   init();
 }
 
@@ -22,18 +26,6 @@ void Pump::init()
   webStop=false;
 }
 
-void Pump::set(float amp, ConfigData conf)
-{
-  amps=amp;
-  configs=conf;
-  if (!unprotectedStartTime())
-  {
-      checkOverload();
-  }
-
-  checkNoWater();
-  checkFlood();
-}
 
 float Pump::getAmps()
 {
@@ -45,7 +37,7 @@ void Pump::start()
   if (!webStop)
   {
     status=PumpStatus::ON;
-    digitalWrite(PUMP_PIN, HIGH);
+    on();
   }  
 }
 
@@ -55,27 +47,27 @@ void Pump::stop(const bool &isWebCommand)
   timersNoWaterSet=true;
   status=PumpStatus::OFF;
   previousStatus=PumpStatus::OFF;
-  digitalWrite(PUMP_PIN, LOW);
+  off();
 }
 
 //Pump unprotected start timer
 bool Pump::unprotectedStartTime()
 {
-  bool rtn=false;
   if(previousStatus==PumpStatus::OFF && status==PumpStatus::ON)
   {
     unprotectedStartMillis=millis();
-    rtn=true;
     previousStatus=PumpStatus::ON;
+    return true;
   }
   else if(previousStatus==PumpStatus::ON &&
-    (millis()-unprotectedStartMillis)<=configs.unprotectedStartDelay &&
+    (millis()-unprotectedStartMillis)<=configs->unprotectedStartDelay &&
     status==PumpStatus::ON)
   {
-    rtn=true;
+    return true;
   }
 
-  return rtn;
+  //previousStatus=PumpStatus::OFF;
+  return false;
 }
 
 //Pump flood protection
@@ -85,20 +77,20 @@ void Pump::checkFlood()
   {
     return;
   }
-  if (timersFloodSet && amps>=configs.minAmps && amps<=configs.maxAmps)
+  if (timersFloodSet && amps>=configs->minAmps && amps<=configs->maxAmps)
   {
     timersFloodSet=false;
     floodMillis = millis();
   }
 
-  if(!timersFloodSet && ((millis()-floodMillis)>(uint64_t)configs.maxRunningtime*NANOHOUR) &&
-    status==PumpStatus::ON  && amps>=configs.minAmps && amps<=configs.maxAmps)
+  if(!timersFloodSet && ((millis()-floodMillis)>(uint64_t)configs->maxRunningtime*NANOHOUR) &&
+    status==PumpStatus::ON  && amps>=configs->minAmps && amps<=configs->maxAmps)
   {
     status=PumpStatus::FLOODPROTECTION;
-    digitalWrite(PUMP_PIN, LOW);
+    off();
   }
 
-  if (amps<configs.minAmps || amps>configs.maxAmps)
+  if (amps<configs->minAmps || amps>configs->maxAmps)
   {
     timersFloodSet=true;
     floodMillis = millis();
@@ -116,7 +108,7 @@ void Pump::checkNoWater()
   }
 
   //entered no water mode, start timer
-  if (timersNoWaterSet && amps<configs.minAmps && status==PumpStatus::ON)
+  if (timersNoWaterSet && amps<configs->minAmps && status==PumpStatus::ON)
   {
     timersNoWaterSet=false;
     noWaterMillis = millis();
@@ -124,16 +116,16 @@ void Pump::checkNoWater()
   }
 
   //no water time > time interval
-  if(!timersNoWaterSet && amps<configs.minAmps && ((millis()-noWaterMillis)>(configs.noWaterTime*1000)) && status==PumpStatus::ON)
+  if(!timersNoWaterSet && amps<configs->minAmps && ((millis()-noWaterMillis)>(configs->noWaterTime*1000)) && status==PumpStatus::ON)
   {
     noWaterMillis = millis();
     status=PumpStatus::NOWATER;
-    digitalWrite(PUMP_PIN, LOW);
+    off();
     return;
   }
 
   //normal mode
-  if(amps>=configs.minAmps)
+  if(amps>=configs->minAmps)
   {
     timersNoWaterSet=true;
     noWaterMillis = millis();
@@ -148,19 +140,19 @@ void Pump::checkOverload()
   {
     return;
   }
-  if (timersOverloadSet && amps>configs.maxAmps)
+  if (timersOverloadSet && amps>configs->maxAmps)
   {
     timersOverloadSet=false;
     overloadMillis = millis();
   }
 
-  if(!timersOverloadSet && amps>configs.maxAmps && millis()-overloadMillis>DEBOUNCE)
+  if(!timersOverloadSet && amps>configs->maxAmps && millis()-overloadMillis>DEBOUNCE)
   {
     status = PumpStatus::OVERLOAD;
-    digitalWrite(PUMP_PIN, LOW);
+    off();
   }
 
-  if(amps<=configs.maxAmps)
+  if(amps<=configs->maxAmps)
   {
     timersOverloadSet=true;
     overloadMillis = millis();
@@ -175,24 +167,29 @@ PumpStatus Pump::getStatus()
 
 String Pump::getTextStatus()
 {
-  String rtn="UNKNOWN";
-  switch (status) {
-    case PumpStatus::OFF:
-      rtn="OFF";
-      break;
-    case PumpStatus::ON:
-      rtn="ON";
-      break;
-    case PumpStatus::NOWATER:
-      rtn="NO WATER";
-      break;
-    case PumpStatus::OVERLOAD:
-      rtn="OVERLOAD";
-      break;
-    case PumpStatus::FLOODPROTECTION:
-      rtn="PROTECTION";
-      break;
-  }
-  return rtn;
+  return PumpStatusText[status];
 }
 
+void Pump::update()
+{
+  amps= CurrentSensor::GetCurrent();
+  if(isnan(amps)) 
+    amps=0;
+
+  if (!unprotectedStartTime())
+  {
+      checkOverload();
+  }
+
+  checkNoWater();
+  checkFlood();
+}
+
+void Pump::off()
+{
+  digitalWrite(PUMP_PIN, HIGH);
+}
+void Pump::on()
+{
+  digitalWrite(PUMP_PIN, LOW);
+}

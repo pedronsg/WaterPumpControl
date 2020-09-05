@@ -1,19 +1,20 @@
-#ifndef WIFIPUMP
-#define WIFIPUMP
+#ifndef WIFI_H
+#define WIFI_H
 
 #include <ESP8266WiFi.h>
-#include "config.h"
+#include "mqtt_ESP.h"
 #include "Ticker.h"
 
-class WifiPump
+
+class CWIFI
 {
   private:
-    ConfigData *_config;
+    MQTT_ESP *wifi_mqtt;
     Ticker _staTick;
-
+    void onWifiConnect(const WiFiEventStationModeGotIP& event);
+    void onWifiDisconnected(const WiFiEventStationModeDisconnected& event);
   public:
-    WifiPump();
-    void init(ConfigData &config);
+    CWIFI(MQTT_ESP &mqtt_);
     void start();
     void disconnect();
     String getIpAddress();

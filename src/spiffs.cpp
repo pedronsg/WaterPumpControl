@@ -1,28 +1,39 @@
 #include "spiffs.h"
-
+#include "FS.h"
 
 void Spiffs::begin()
 {
   SPIFFS.begin();
   delay(500);
-
-  Serial.println("\nSearching files...");
+#ifdef DEBUG_ENABLED 
+  Serial1.println("\nSearching files...");
+#endif
    Dir existDir = SPIFFS.openDir("/");
    if (existDir.next())
    {
-     Serial.println("Spiffs already formatted");
+     #ifdef DEBUG_ENABLED 
+     Serial1.println("Spiffs already formatted");
+     #endif
    }else
    {
-     Serial.println("Please wait 30 secs for SPIFFS to be formatted");
+     #ifdef DEBUG_ENABLED 
+     Serial1.println("Please wait 30 secs for SPIFFS to be formatted");
+     #endif
      SPIFFS.format();
-     Serial.println("Spiffs formatted");
+     #ifdef DEBUG_ENABLED 
+     Serial1.println("Spiffs formatted");
+     #endif
      File f = SPIFFS.open("/formatComplete.txt", "w");
    }
   Dir dir = SPIFFS.openDir("/");
 while (dir.next()) {
-    Serial.print(dir.fileName());
+  #ifdef DEBUG_ENABLED 
+    Serial1.print(dir.fileName());
+  #endif
     File f = dir.openFile("r");
-    Serial.print(" ");
-    Serial.println(f.size());
+    #ifdef DEBUG_ENABLED 
+    Serial1.print(" ");
+    Serial1.println(f.size());
+    #endif
 }
 }

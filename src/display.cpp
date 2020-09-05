@@ -1,6 +1,9 @@
 #include "display.h"
 #include "config.h"
+#include "SSD1306Wire.h"
 
+SSD1306Wire ssdDisplay;
+ConfigData *display_config;
 
 void Display::drawProgressBarValue(const int progress) {
   //int progress = (counter / 5) % 100;
@@ -14,15 +17,16 @@ void Display::drawProgressBarValue(const int progress) {
 
 Display::Display()
 {
+  display_config=CConfig::GetInstance();
   ssdDisplay.begin(DISPLAYADDRESS, SDAPIN, SCLPIN);
 }
 
 void Display::init()
 {
-   _blink=false;
-  _blinkMillis=0;
+   blink=false;
+  blinkMillis=0;
   ssdDisplay.init();
-  ssdDisplay.flipScreenVertically();
+  //ssdDisplay.flipScreenVertically();
   ssdDisplay.setFont(ArialMT_Plain_16);
 }
 
@@ -57,6 +61,13 @@ void Display::drawMsg(const char* msg)
   ssdDisplay.setFont(ArialMT_Plain_16);
   ssdDisplay.setTextAlignment(TEXT_ALIGN_CENTER);
   ssdDisplay.drawString(64, 49, msg);
+}
+
+void Display::drawMsg(const char* msg, int x, int y)
+{
+  ssdDisplay.setFont(ArialMT_Plain_16);
+  ssdDisplay.setTextAlignment(TEXT_ALIGN_CENTER);
+  ssdDisplay.drawString(x, y, msg);
 }
 
 
@@ -112,4 +123,46 @@ void Display::printProgressValue(const uint8_t value, const char* msg)
   drawProgressBarValue(value);
   drawMsg(msg);
   ssdDisplay.display();
+}
+
+void Display::printRunning(Pump &pump, Tank &tank)
+{
+  if(millis()-blinkMillis>LCDBLINKMSGINTERVAL)
+  {
+    clear();
+    drawBars(display_config->minBars, display_config->maxBars, tank.getBars());
+    drawAmps(display_config->minAmps, display_config->maxAmps, pump.getAmps());
+    if (blink) 
+      drawMsg(pump.getTextStatus().c_str());
+
+    blink=!blink;
+    print();
+    blinkMillis=millis();
+  }
+}
+
+void Display::printFlashing(uint8_t &percent)
+{
+  clear();
+  drawProgressBarValue(percent);
+  drawMsg(String("flashing...").c_str()); 
+  print();
+}
+
+void Display::printRebooting()
+{
+  clear();
+  drawProgressBarValue(100);
+  drawMsg(String("Rebooting...").c_str());
+  print();
+}
+
+void Display::printReset()
+{
+    clear();
+    drawMsg(String("Resetting...").c_str(),64,29);
+    print();
+    delay(1000);
+    drawMsg(String("Calibrating...").c_str(),64,29);
+    print();
 }

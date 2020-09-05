@@ -1,8 +1,6 @@
 #ifndef TANK_H
 #define TANK_H
 
-#include "config.h"
-
 enum TankStatus
 {
   EMPTY,
@@ -10,11 +8,11 @@ enum TankStatus
   FULL
 };
 
+#define TankStatusText ((char const*[]){ "EMPTY", "NORMAL", "FULL"})
 
 class Tank{
 private:
   float bar;
-  ConfigData conf;
   TankStatus status;
   uint64_t debounceEmptyMillis;
   uint64_t debounceFullMillis;
@@ -24,9 +22,10 @@ private:
   void checkFull();
 public:
   Tank();
-  void set(float _bar, ConfigData _conf);
   float getBars();
   TankStatus getStatus();
+  void update();
+  String  getTextStatus();
 };
 
 #endif
